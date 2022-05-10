@@ -3,7 +3,10 @@ package com.pasarceti.chat.servidor.controladores;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Observable;
+import java.util.Observer;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -30,6 +33,8 @@ public class ServidorChat
     // Lista concurrente con los sockets conectados. 
     // Recordar que es más eficiente en iteración que en modificación.
 //    private CopyOnWriteArrayList<Socket> clientesConectados = new CopyOnWriteArrayList<>();  
+
+    private final CopyOnWriteArraySet<Observer> observadoresEvt = new CopyOnWriteArraySet<>();
 
     public ServidorChat(int puerto) 
     {
@@ -61,6 +66,17 @@ public class ServidorChat
                 // en otro hilo.
                 Runnable tareaPeticion = new HiloServidor(cliente);
 
+                if (tareaPeticion instanceof Observable) 
+                {
+                    // Si la tareaPeticion es un Observable, agregar a todos los 
+                    // observadores de eventos al conjunto de observadores de 
+                    // tareaPeticion.
+                    for (Observer observador : observadoresEvt)
+                    {
+                        ((Observable) tareaPeticion).addObserver(observador);
+                    }
+                }
+
                 // Ejecutar la tarea de manejo de la peticion, a traves del Executor.
                 exec.execute(tareaPeticion);
             }
@@ -80,5 +96,15 @@ public class ServidorChat
     {
         exec.shutdown();
         logger.info("Servidor detenido");
+    }
+
+/**
+ * Agrega un observador de los eventos producidos por el servidor.
+ * 
+ * @param observer El observador a agregar.
+ */
+    public void addEventObserver(Observer observer) 
+    {
+        observadoresEvt.add(observer);
     }
 }

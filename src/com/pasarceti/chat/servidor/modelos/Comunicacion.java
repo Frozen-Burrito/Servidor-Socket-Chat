@@ -22,7 +22,8 @@ public class Comunicacion
 
     private String cuerpoJSON;
 
-    public Comunicacion(int tipoDeEvento, boolean fueExitosa, int idUsuarioCliente, String cuerpoJSON) {
+    public Comunicacion(int tipoDeEvento, boolean fueExitosa, int longitud, int idUsuarioCliente, String cuerpoJSON) 
+    {
         this.tipoDeEvento = tipoDeEvento;
         this.fueExitosa = fueExitosa;
         this.longitudCuerpo = cuerpoJSON.length();
@@ -30,11 +31,52 @@ public class Comunicacion
         this.cuerpoJSON = cuerpoJSON;
     }
 
+    public static Comunicacion desdePeticion(String primeraLinea, String cuerpoJSON)
+    {
+        String[] partesLineaInicial = primeraLinea.split(" ");
+
+        String mensajeErr = "";
+
+        try 
+        {
+            validarPrimeraLinea(partesLineaInicial);
+
+            int ordTipoDeEvento = Integer.parseInt(partesLineaInicial[1]);
+
+            if (ordTipoDeEvento < 0 || ordTipoDeEvento > TipoDeEvento.values().length)
+            {
+                throw new IllegalArgumentException("El tipo de evento no es soportado.");
+            }
+
+            int longitud = Integer.parseInt(partesLineaInicial[2]);
+            int idUsuario = Integer.parseInt(partesLineaInicial[3]);
+
+            validarLongitudCuerpo(longitud, cuerpoJSON);
+
+            return new Comunicacion(ordTipoDeEvento, true, longitud, idUsuario, cuerpoJSON);
+        } 
+        catch (NumberFormatException e) 
+        {
+            mensajeErr = "Error: la peticion no tiene un formato correcto.";
+            
+        } catch (IllegalArgumentException ex) {
+            mensajeErr = "Error de formato en comunicacion: " +  ex.getMessage();
+        }
+
+        return new Comunicacion(
+            TipoDeEvento.ERROR_CLIENTE.ordinal(), 
+            false, 
+            mensajeErr.length(), 
+            0, 
+            mensajeErr
+        );
+    }
+
     @Override
     public String toString() 
     {
         String lineaInicial = String.format(
-            "%s %i %s %i %i\n", 
+            "%s %d %s %d %d\n", 
             IDENTIFICADOR_COM, 
             tipoDeEvento, 
             String.valueOf(fueExitosa), 
@@ -43,6 +85,32 @@ public class Comunicacion
         );
 
         return String.format("%s\n%s", lineaInicial, cuerpoJSON);
+    }
+
+    public static void validarPrimeraLinea(String[] primeraLinea) throws IllegalArgumentException
+    {
+        if (primeraLinea.length < 1 || primeraLinea[0] != IDENTIFICADOR_COM)
+        {
+            throw new IllegalArgumentException("La petición no es reconocida por el servidor.");
+        }
+
+        if (primeraLinea.length < 4) 
+        {
+            throw new IllegalArgumentException("La peticion no tiene todos los datos.");
+        }
+
+        if (primeraLinea.length > 5) 
+        {
+            throw new IllegalArgumentException("La peticion tiene demasiados valores.");
+        }
+    }
+
+    public static void validarLongitudCuerpo(int longitud, String cuerpoJSON) throws IllegalArgumentException
+    {
+        if (longitud != cuerpoJSON.length()) 
+        {
+            throw new IllegalArgumentException("El cuerpo y la longitud no coinciden.");
+        }
     }
 
     public int getTipoDeEvento() {

@@ -34,4 +34,8 @@ public class Evento
     public String toString() {
         return String.format("[%s] - %s: %s", fecha.toString(), tipo.toString(), datos);
     }
+
+    public final TipoDeEvento getTipoDeEvento() {
+        return tipo;
+    }
 }
