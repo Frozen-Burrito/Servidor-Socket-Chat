@@ -3,8 +3,11 @@ package com.pasarceti.chat.servidor.controladores;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.Executor;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
 * @brief El servidor que realiza toda la comunicación con los clientes del chat.
@@ -12,14 +15,21 @@ import java.util.concurrent.Executors;
 public class ServidorChat 
 {
     // El puerto del sistema en que está disponible este servidor.
-    private int puerto; 
+    private final int puerto; 
     
-    // La cantidad de hilos que va a utilizar este objeto.
+    // La cantidad de hilos que va a utilizar esta instancia de servidor.
     private static final int NUM_HILOS = 100;
     
     // Este Executor coordina y ejecuta todas las tareas de procesamiento de 
     // comunicación con sockets.
-    private static final Executor exec = Executors.newFixedThreadPool(NUM_HILOS);    
+    private static final ExecutorService exec = Executors.newFixedThreadPool(NUM_HILOS);  
+
+    // Servicio de logging para el servidor.
+    private static final Logger logger = Logger.getLogger("Server");
+
+    // Lista concurrente con los sockets conectados. 
+    // Recordar que es más eficiente en iteración que en modificación.
+//    private CopyOnWriteArrayList<Socket> clientesConectados = new CopyOnWriteArrayList<>();  
 
     public ServidorChat(int puerto) 
     {
@@ -30,48 +40,45 @@ public class ServidorChat
     * @brief Ejecuta el servidor, haciendo que esté disponible y pueda recibir y 
     * enviar datos.
     */
-    public void ejecutar() throws IOException 
+    public void ejecutar() 
     {
-        // Crear una nueva instancia de un ServerSocket.
-        ServerSocket socketServidor = new ServerSocket(puerto);
+        try 
+        {
+            logger.info("Inciando servidor de chat...");
 
-        while (true) 
-        {   
-            // Esperar a que haya una conexion de un cliente. Aceptarla cuando llegue.
-            final Socket cliente = socketServidor.accept();
+            // Crear una nueva instancia de un ServerSocket.
+            ServerSocket socketServidor = new ServerSocket(puerto);
 
-            // Crear un nuevo runnable para ejecutar el manejo de la comunicacion 
-            // en otro hilo.
-            Runnable tareaPeticion = new Runnable()
-            {
-                @Override
-                public void run() 
-                {
-                    try 
-                    {
-                        manejarPeticion(cliente);
+            logger.info("Servidor iniciado, esperando conexiones.");
 
-                    } catch (IOException e) 
-                    {
-                        System.out.println("Excepcion: " + e.getMessage());
-                    }
-                }
-            };
+            // Aceptar conexiones mientras el servicio de ejecucion siga activo.
+            while (!exec.isShutdown()) 
+            {   
+                // Esperar a que haya una conexion de un cliente. Aceptarla cuando llegue.
+                final Socket cliente = socketServidor.accept();
 
-            // Ejecutar la tarea de manejo de la peticion, a traves del Executor.
-            exec.execute(tareaPeticion);
+                // Crear un nuevo runnable para ejecutar el manejo de la comunicacion 
+                // en otro hilo.
+                Runnable tareaPeticion = new HiloServidor(cliente);
+
+                // Ejecutar la tarea de manejo de la peticion, a traves del Executor.
+                exec.execute(tareaPeticion);
+            }
+
+            logger.info("El servidor ya dejo de esperar conexiones.");        }
+        catch (IOException e) 
+        {
+            logger.log(Level.SEVERE, "Error iniciando el servidor: {0}", e.getMessage());
+            detener();
         }
     }
 
     /**
-     * @brief Realiza todas las acciones necesarias para procesar una peticion.
-
-     * - Interpreta la peticion.
-     * - Ejecuta la accion solicitada.
-     * - Retorna un resultado al cliente.
+     * Detiene la ejecucion del servidor. 
     */
-    private void manejarPeticion(Socket cliente) throws IOException
+    public void detener() 
     {
-        //TODO: Manejar peticiones
+        exec.shutdown();
+        logger.info("Servidor detenido");
     }
 }
