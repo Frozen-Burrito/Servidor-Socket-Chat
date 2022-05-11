@@ -39,6 +39,7 @@ public class Comunicacion
 
         try 
         {
+            // Validar e intentar obtener los datos de la comunicación.
             validarPrimeraLinea(partesLineaInicial);
 
             int ordTipoDeEvento = Integer.parseInt(partesLineaInicial[1]);

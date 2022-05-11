@@ -141,6 +141,33 @@ public class HiloServidor extends Observable implements Runnable
         case USUARIO_DESCONECTADO:
             evento = AccionesServidor.desconectarUsuario(idUsuario);
             break;
+        case PASSWORD_CAMBIADO:
+            evento = AccionesServidor.cambiarPassword(idUsuario, datosJson);
+            break;
+        case MENSAJE_ENVIADO:
+            evento = AccionesServidor.enviarMensaje(idUsuario, datosJson);
+            break;
+        case AMIGO_AGREGADO:
+            evento = AccionesServidor.agregarAmistad(idUsuario, datosJson);
+            break;
+        case AMIGO_REMOVIDO:
+            evento = AccionesServidor.removerAmistad(idUsuario, datosJson);
+            break;
+        case GRUPO_CREADO:
+            evento = AccionesServidor.crearGrupo(idUsuario, datosJson);
+            break;
+        case INVITACION_ENVIADA:
+            evento = AccionesServidor.enviarInvitacion(idUsuario, datosJson);
+            break;
+        case INVITACION_RECHAZADA:
+            evento = AccionesServidor.rechazarInvitacion(idUsuario, datosJson);
+            break;
+        case INVITACION_ACEPTADA:
+            evento = AccionesServidor.aceptarInvitacion(idUsuario, datosJson);
+            break;
+        case USUARIO_ABANDONO_GRUPO:
+            evento = AccionesServidor.abandonarGrupo(idUsuario, datosJson);
+            break;
         default:
             evento = new Evento(TipoDeEvento.ERROR_SERVIDOR, "La acción no pudo ser procesada por el servidor.");
             break;
@@ -181,6 +208,9 @@ public class HiloServidor extends Observable implements Runnable
         salida.flush();
     }
 
+    /**
+    * @brief Notifica a todos los observadores de eventos del servidor. 
+    */
     private void notificarEvento(Evento nuevoEvento) 
     {
         this.setChanged();

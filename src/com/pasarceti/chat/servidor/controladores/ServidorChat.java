@@ -15,7 +15,7 @@ import java.util.logging.Logger;
 /**
 * @brief El servidor que realiza toda la comunicación con los clientes del chat.
 */
-public class ServidorChat  
+public class ServidorChat
 {
     // El puerto del sistema en que está disponible este servidor.
     private final int puerto; 
