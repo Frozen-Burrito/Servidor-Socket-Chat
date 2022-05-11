@@ -1,14 +1,17 @@
 package com.pasarceti.chat.servidor.controladores;
 
+import com.pasarceti.chat.servidor.modelos.Evento;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Observable;
 import java.util.Observer;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -22,19 +25,26 @@ public class ServidorChat
     
     // La cantidad de hilos que va a utilizar esta instancia de servidor.
     private static final int NUM_HILOS = 100;
+
+    // La cantidad máxima de eventos que pueden estar en queueEventos a la vez.
+    private static final int MAX_EVENTOS_EN_QUEUE = 100;
     
     // Este Executor coordina y ejecuta todas las tareas de procesamiento de 
     // comunicación con sockets.
     private static final ExecutorService exec = Executors.newFixedThreadPool(NUM_HILOS);  
 
     // Servicio de logging para el servidor.
-    private static final Logger logger = Logger.getLogger("Server");
+    private static final Logger logger = Logger.getLogger("ServidorChat");
 
     // Lista concurrente con los sockets conectados. 
     // Recordar que es más eficiente en iteración que en modificación.
 //    private CopyOnWriteArrayList<Socket> clientesConectados = new CopyOnWriteArrayList<>();  
 
     private final CopyOnWriteArraySet<Observer> observadoresEvt = new CopyOnWriteArraySet<>();
+
+    // El queue para el patrón productor-consumidor (servidor y gui, en este caso)
+    // que envía los eventos producidos por el servidor a los consumidores de este queue.
+    private final BlockingQueue<Evento> queueEventos = new LinkedBlockingDeque<>(MAX_EVENTOS_EN_QUEUE);
 
     public ServidorChat(int puerto) 
     {
@@ -69,7 +79,7 @@ public class ServidorChat
 
                 // Crear un nuevo runnable para ejecutar el manejo de la comunicacion 
                 // en otro hilo.
-                Runnable tareaPeticion = new HiloServidor(cliente);
+                Runnable tareaPeticion = new HiloServidor(cliente, queueEventos);
 
                 if (tareaPeticion instanceof Observable) 
                 {
@@ -103,11 +113,16 @@ public class ServidorChat
         logger.info("Servidor detenido");
     }
 
-/**
- * Agrega un observador de los eventos producidos por el servidor.
- * 
- * @param observer El observador a agregar.
- */
+    public BlockingQueue<Evento> getQueueEventos()
+    {
+        return queueEventos;
+    }
+
+    /**
+     * Agrega un observador de los eventos producidos por el servidor.
+     * 
+     * @param observer El observador a agregar.
+     */
     public void addEventObserver(Observer observer) 
     {
         observadoresEvt.add(observer);

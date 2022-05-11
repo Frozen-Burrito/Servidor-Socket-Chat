@@ -13,6 +13,9 @@ import java.util.Observable;
 import com.pasarceti.chat.servidor.modelos.Comunicacion;
 import com.pasarceti.chat.servidor.modelos.Evento;
 import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Esta clase ejecuta la "tarea" de manejar la comunicacion con los sockets 
@@ -23,9 +26,18 @@ public class HiloServidor extends Observable implements Runnable
     // El socket con la conexión del cliente.
     private final Socket socket;
 
-    public HiloServidor(Socket socket) 
+    // El queue de eventos, proporcionado por el servidor. Cada HiloServidor 
+    // actua como un productor de eventos.
+    private final BlockingQueue<Evento> queueEventos;
+
+    // Los milisegundos que puede llegar a bloquear el hilo cuando
+    // envía un evento al queueEventos.
+    private static final long BLOQUEO_MAX_EVT_MS = 500;
+
+    public HiloServidor(Socket socket, BlockingQueue<Evento> queueEventos) 
     {
         this.socket = socket;
+        this.queueEventos = queueEventos;
     }
 
     @Override
@@ -41,7 +53,6 @@ public class HiloServidor extends Observable implements Runnable
             while (!(socket.isClosed()))
             {
                 String primeraLinea = streamEntrada.readLine();
-                System.out.println("Encabezado: " + primeraLinea);
 
                 // Si readLinea() retorna null, el socket del cliente fue desconectado.
                 if (primeraLinea == null)
@@ -93,10 +104,15 @@ public class HiloServidor extends Observable implements Runnable
 
             if (comunicacion.tieneError()) 
             {
-                System.out.println("Error de peticion");
+//                System.out.println("Error de peticion");
                 // Si la peticion tiene un error detectado por
                 // Comunicacion.desdePeticion(), regresar una respuesta de error 
                 // al cliente.
+                TipoDeEvento tipoDeEvento = TipoDeEvento.values()[comunicacion.getTipoDeEvento()];
+                Evento eventoError = new Evento(tipoDeEvento, comunicacion.getCuerpoJSON());
+
+                queueEventos.offer(eventoError, BLOQUEO_MAX_EVT_MS, TimeUnit.MILLISECONDS);
+
                 enviarRespuesta(cliente, comunicacion);
             } 
             else 
@@ -109,6 +125,10 @@ public class HiloServidor extends Observable implements Runnable
                 enviarRespuesta(cliente, resultado);
             }
         }
+        catch (InterruptedException e) 
+        {
+            Thread.currentThread().interrupt();
+        }
         catch (SocketTimeoutException e) 
         {
             System.out.println("Advertencia: la operacion de lectura hizo timeout.");
@@ -119,7 +139,7 @@ public class HiloServidor extends Observable implements Runnable
         }
     }
 
-    private Comunicacion realizarAccion(Comunicacion comunicacion) 
+    private Comunicacion realizarAccion(Comunicacion comunicacion) throws InterruptedException 
     {
         //TODO: Implementar todas las funciones del servidor.
         int ordTipoDeAccion = Math.min(comunicacion.getTipoDeEvento(), TipoDeEvento.values().length);
@@ -173,9 +193,10 @@ public class HiloServidor extends Observable implements Runnable
             break;
         }
 
-        System.out.println(evento.toString());
+//        System.out.println(evento.toString());
 
         // Notificar con el evento resultante de la accion.
+        queueEventos.offer(evento, BLOQUEO_MAX_EVT_MS, TimeUnit.MILLISECONDS);
         notificarEvento(evento);
 
         // Serializar el objeto producido por la accion a JSON, usando GSON

@@ -1,7 +1,9 @@
 package com.pasarceti.chat.servidor;
 
-import com.pasarceti.chat.servidor.controladores.ServidorChat;
 import javax.swing.SwingUtilities;
+
+import com.pasarceti.chat.servidor.controladores.ServidorChat;
+import com.pasarceti.chat.servidor.logeventos.LoggerDeEventos;
 
 public class Main {
 
@@ -21,6 +23,11 @@ public class Main {
 
         servidor.addEventObserver(gui); // Agregar la GUI como observadora del servidor.
 */
+        // Crear un logger que consuma los eventos producidos por el servidor.
+        LoggerDeEventos logEventos = new LoggerDeEventos(servidor.getQueueEventos());
+
+        logEventos.start();
+
         // Comenzar la ejecución del servidor.
         servidor.ejecutar();
 
