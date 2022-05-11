@@ -21,6 +21,7 @@ public class Evento
 
     public Evento(TipoDeEvento tipo, String datos) {
         this.tipo = tipo;
+        this.fecha = LocalDateTime.now();
         this.datos = datos;
     }
 
@@ -33,6 +34,14 @@ public class Evento
     @Override
     public String toString() {
         return String.format("[%s] - %s: %s", fecha.toString(), tipo.toString(), datos);
+    }
+
+    public LocalDateTime getFecha() {
+        return fecha;
+    }
+
+    public String getDatos() {
+        return datos;
     }
 
     public final TipoDeEvento getTipoDeEvento() {

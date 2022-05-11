@@ -26,12 +26,12 @@ public class Comunicacion
     {
         this.tipoDeEvento = tipoDeEvento;
         this.fueExitosa = fueExitosa;
-        this.longitudCuerpo = cuerpoJSON.length();
+        this.longitudCuerpo = longitud;
         this.idUsuarioCliente = idUsuarioCliente;
         this.cuerpoJSON = cuerpoJSON;
     }
 
-    public static Comunicacion desdePeticion(String primeraLinea, String cuerpoJSON)
+    public static Comunicacion desdePeticion(String primeraLinea)
     {
         String[] partesLineaInicial = primeraLinea.split(" ");
 
@@ -51,9 +51,7 @@ public class Comunicacion
             int longitud = Integer.parseInt(partesLineaInicial[2]);
             int idUsuario = Integer.parseInt(partesLineaInicial[3]);
 
-            validarLongitudCuerpo(longitud, cuerpoJSON);
-
-            return new Comunicacion(ordTipoDeEvento, true, longitud, idUsuario, cuerpoJSON);
+            return new Comunicacion(ordTipoDeEvento, true, longitud, idUsuario, "");
         } 
         catch (NumberFormatException e) 
         {
@@ -76,7 +74,7 @@ public class Comunicacion
     public String toString() 
     {
         String lineaInicial = String.format(
-            "%s %d %s %d %d\n", 
+            "%s %d %s %d %d", 
             IDENTIFICADOR_COM, 
             tipoDeEvento, 
             String.valueOf(fueExitosa), 
@@ -87,9 +85,20 @@ public class Comunicacion
         return String.format("%s\n%s", lineaInicial, cuerpoJSON);
     }
 
+    public boolean tieneJson() 
+    {
+        return this.longitudCuerpo > 0;
+    }
+
+    public boolean tieneError() 
+    {
+        return tipoDeEvento == TipoDeEvento.ERROR_CLIENTE.ordinal() ||
+               tipoDeEvento == TipoDeEvento.ERROR_SERVIDOR.ordinal();
+    }
+
     public static void validarPrimeraLinea(String[] primeraLinea) throws IllegalArgumentException
     {
-        if (primeraLinea.length < 1 || primeraLinea[0] != IDENTIFICADOR_COM)
+        if (primeraLinea.length < 1 || !primeraLinea[0].equals(IDENTIFICADOR_COM))
         {
             throw new IllegalArgumentException("La petición no es reconocida por el servidor.");
         }
@@ -150,6 +159,19 @@ public class Comunicacion
     }
 
     public void setCuerpoJSON(String cuerpoJSON) {
-        this.cuerpoJSON = cuerpoJSON;
+
+        try 
+        {
+            validarLongitudCuerpo(longitudCuerpo, cuerpoJSON);
+
+            this.cuerpoJSON = cuerpoJSON;
+
+        } catch (IllegalArgumentException e) {  
+            String mensajeErr = "Error de formato en comunicacion: " +  e.getMessage();
+            
+            this.fueExitosa = false;
+            this.longitudCuerpo = mensajeErr.length();
+            this.cuerpoJSON = mensajeErr;
+        }
     }
 }

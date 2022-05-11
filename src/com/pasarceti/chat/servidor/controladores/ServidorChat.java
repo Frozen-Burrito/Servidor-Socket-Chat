@@ -15,7 +15,7 @@ import java.util.logging.Logger;
 /**
 * @brief El servidor que realiza toda la comunicación con los clientes del chat.
 */
-public class ServidorChat 
+public class ServidorChat  
 {
     // El puerto del sistema en que está disponible este servidor.
     private final int puerto; 
@@ -61,6 +61,11 @@ public class ServidorChat
             {   
                 // Esperar a que haya una conexion de un cliente. Aceptarla cuando llegue.
                 final Socket cliente = socketServidor.accept();
+
+                // Timeout de 10 segundos para los read() al socket.
+//                cliente.setSoTimeout(10000);
+
+                logger.info("Cliente conectado");
 
                 // Crear un nuevo runnable para ejecutar el manejo de la comunicacion 
                 // en otro hilo.
