@@ -1,5 +1,8 @@
 package com.pasarceti.chat.servidor.modelos;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
+
 /**
  * @brief Representa una comunicación (petición o respuesta) procesada por el 
  * servidor. Ayuda a asegurar que toda la comunicación producida por el servidor 
@@ -12,89 +15,25 @@ public class Comunicacion
 
     public static final int LONGITUD_MAX_CUERPO = 1024;
 
-    private int tipoDeEvento; 
+    protected boolean fueExitosa;
 
-    private boolean fueExitosa;
+    protected int longitudCuerpo; 
 
-    private int longitudCuerpo; 
+    protected int idUsuarioCliente;
 
-    private int idUsuarioCliente;
+    protected String cuerpoJSON;
 
-    private String cuerpoJSON;
-
-    public Comunicacion(int tipoDeEvento, boolean fueExitosa, int longitud, int idUsuarioCliente, String cuerpoJSON) 
+    public Comunicacion(boolean fueExitosa, int longitud, int idUsuarioCliente, String cuerpoJSON) 
     {
-        this.tipoDeEvento = tipoDeEvento;
         this.fueExitosa = fueExitosa;
         this.longitudCuerpo = longitud;
         this.idUsuarioCliente = idUsuarioCliente;
         this.cuerpoJSON = cuerpoJSON;
     }
 
-    public static Comunicacion desdePeticion(String primeraLinea)
-    {
-        String[] partesLineaInicial = primeraLinea.split(" ");
-
-        String mensajeErr = "";
-
-        try 
-        {
-            // Validar e intentar obtener los datos de la comunicación.
-            validarPrimeraLinea(partesLineaInicial);
-
-            int ordTipoDeEvento = Integer.parseInt(partesLineaInicial[1]);
-
-            if (ordTipoDeEvento < 0 || ordTipoDeEvento > TipoDeEvento.values().length)
-            {
-                throw new IllegalArgumentException("El tipo de evento no es soportado.");
-            }
-
-            int longitud = Integer.parseInt(partesLineaInicial[2]);
-            int idUsuario = Integer.parseInt(partesLineaInicial[3]);
-
-            return new Comunicacion(ordTipoDeEvento, true, longitud, idUsuario, "");
-        } 
-        catch (NumberFormatException e) 
-        {
-            mensajeErr = "Error: la peticion no tiene un formato correcto.";
-            
-        } catch (IllegalArgumentException ex) {
-            mensajeErr = "Error de formato en comunicacion: " +  ex.getMessage();
-        }
-
-        return new Comunicacion(
-            TipoDeEvento.ERROR_CLIENTE.ordinal(), 
-            false, 
-            mensajeErr.length(), 
-            0, 
-            mensajeErr
-        );
-    }
-
-    @Override
-    public String toString() 
-    {
-        String lineaInicial = String.format(
-            "%s %d %s %d %d", 
-            IDENTIFICADOR_COM, 
-            tipoDeEvento, 
-            String.valueOf(fueExitosa), 
-            longitudCuerpo, 
-            idUsuarioCliente
-        );
-
-        return String.format("%s\n%s", lineaInicial, cuerpoJSON);
-    }
-
     public boolean tieneJson() 
     {
         return this.longitudCuerpo > 0;
-    }
-
-    public boolean tieneError() 
-    {
-        return tipoDeEvento == TipoDeEvento.ERROR_CLIENTE.ordinal() ||
-               tipoDeEvento == TipoDeEvento.ERROR_SERVIDOR.ordinal();
     }
 
     public static void validarPrimeraLinea(String[] primeraLinea) throws IllegalArgumentException
@@ -123,15 +62,7 @@ public class Comunicacion
         }
     }
 
-    public int getTipoDeEvento() {
-        return tipoDeEvento;
-    }
-
-    public void setTipoDeEvento(int tipoDeEvento) {
-        this.tipoDeEvento = tipoDeEvento;
-    }
-
-    public boolean isFueExitosa() {
+    public boolean fueExitosa() {
         return fueExitosa;
     }
 
@@ -159,20 +90,10 @@ public class Comunicacion
         return cuerpoJSON;
     }
 
-    public void setCuerpoJSON(String cuerpoJSON) {
+    public void setCuerpoJSON(String cuerpoJSON) throws IllegalArgumentException
+    {
+        validarLongitudCuerpo(longitudCuerpo, cuerpoJSON);
 
-        try 
-        {
-            validarLongitudCuerpo(longitudCuerpo, cuerpoJSON);
-
-            this.cuerpoJSON = cuerpoJSON;
-
-        } catch (IllegalArgumentException e) {  
-            String mensajeErr = "Error de formato en comunicacion: " +  e.getMessage();
-            
-            this.fueExitosa = false;
-            this.longitudCuerpo = mensajeErr.length();
-            this.cuerpoJSON = mensajeErr;
-        }
+        this.cuerpoJSON = cuerpoJSON;
     }
 }

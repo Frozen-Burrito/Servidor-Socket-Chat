@@ -12,11 +12,11 @@ import java.util.List;
  *
  * 
  */
-public class DTOGrupo 
+public class DTOGrupo extends DTODestinatario 
 {
     private int idUsuario;
 
-    private String nombre;
+    private final String nombre;
 
     private  List<Integer> idsUsuariosMiembro = new ArrayList<>();
 
