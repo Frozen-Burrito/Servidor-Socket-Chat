@@ -10,11 +10,11 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 
-import com.pasarceti.chat.servidor.modelos.Comunicacion;
 import com.pasarceti.chat.servidor.modelos.Evento;
 import com.pasarceti.chat.servidor.modelos.EventoServidor;
 import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
 import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
+import com.pasarceti.chat.servidor.modelos.dto.DTONuevoMensaje;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.List;
@@ -40,6 +40,14 @@ public class HiloServidor implements Runnable, PropertyChangeListener
 
     // El socket con la conexión del cliente.
     private final Socket socket;
+    
+    // El ID del usuario conectado, es -1 si no ha iniciado sesion.
+    private final ThreadLocal<Integer> idUsuario = new ThreadLocal<Integer>() {
+        @Override
+        protected Integer initialValue() {
+            return -1;
+        }
+    };
 
     // El queue para el patrón productor-consumidor (servidor y gui, en este caso)
     // que envía los eventos producidos por el servidor a los consumidores de este queue.
@@ -81,7 +89,7 @@ public class HiloServidor implements Runnable, PropertyChangeListener
                     // Hacer cleanup necesario.
                     System.out.println("El cliente se desconectó, cerrando el socket.");
 
-                    estadoServidor.desconectarUsuarioActual();
+                    estadoServidor.desconectarUsuario(idUsuario);
                     
                     socket.close();
                     streamEntrada.close();
@@ -122,24 +130,24 @@ public class HiloServidor implements Runnable, PropertyChangeListener
 
             actualizacion = new EventoServidor(
                 TipoDeEvento.USUARIO_CONECTADO, 
-                estadoServidor.getIdUsuarioActual(), 
+                idUsuario.get(), 
                 usuariosConectadosStr
             );
             break;
         case EstadoServidor.PROP_MENSAJES_RECIBIDOS:
-            final List<DTOMensaje> mensajes = estadoServidor.getMensajesUsuarioActual();
+            final List<DTOMensaje> mensajes = estadoServidor.getMensajesUsuario(idUsuario.get());
             final String jsonMensajesRecibidos = gson.toJson(mensajes);
 
             actualizacion = new EventoServidor(
                 TipoDeEvento.MENSAJE_ENVIADO, 
-                estadoServidor.getIdUsuarioActual(), 
+                idUsuario.get(), 
                 jsonMensajesRecibidos
             );
             break;
         default:
             actualizacion = new EventoServidor(
                 TipoDeEvento.ERROR_SERVIDOR, 
-                estadoServidor.getIdUsuarioActual(),
+                idUsuario.get(),
                 ""
             );
         }
@@ -196,7 +204,7 @@ public class HiloServidor implements Runnable, PropertyChangeListener
             
             EventoServidor resultadoErr = new EventoServidor(
                 TipoDeEvento.ERROR_CLIENTE, 
-                estadoServidor.getIdUsuarioActual(),
+                idUsuario.get(),
                 e.getMessage()
             );
 
@@ -215,9 +223,9 @@ public class HiloServidor implements Runnable, PropertyChangeListener
     private EventoServidor realizarAccion(AccionCliente accionCliente) throws InterruptedException 
     {
         //TODO: Implementar todas las funciones del servidor.
-        ControladorChat controladorChat = new ControladorChat(estadoServidor);
+        ControladorChat controladorChat = new ControladorChat(estadoServidor, idUsuario);
 
-        EventoServidor resultado = controladorChat.ejecutarAccion(accionCliente);
+        EventoServidor resultado = controladorChat.ejecutarAccion(socket, accionCliente);
 
         // Notificar con el evento resultante de la accion.
         Evento evento = new Evento(resultado.getTipoDeEvento(), resultado.getCuerpoJSON());

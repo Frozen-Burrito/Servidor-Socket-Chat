@@ -13,7 +13,7 @@ package com.pasarceti.chat.servidor.modelos;
  */
 public class EventoServidor extends Comunicacion {
 
-    private final TipoDeEvento tipoDeEvento;
+    private TipoDeEvento tipoDeEvento;
 
     public EventoServidor(TipoDeEvento tipoDeEvento, int idUsuarioCliente, String cuerpoJSON) 
     {
@@ -55,5 +55,10 @@ public class EventoServidor extends Comunicacion {
     public TipoDeEvento getTipoDeEvento() 
     {
         return tipoDeEvento;
+    }
+    
+    public void setTipoDeEvento(TipoDeEvento tipoDeEvento) 
+    {
+        this.tipoDeEvento = tipoDeEvento;
     }
 }

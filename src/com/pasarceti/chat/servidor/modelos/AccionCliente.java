@@ -7,7 +7,7 @@ package com.pasarceti.chat.servidor.modelos;
  */
 public class AccionCliente extends Comunicacion 
 {
-    private TipoDeAccion tipoDeAccion;
+    private final TipoDeAccion tipoDeAccion;
 
     public AccionCliente(int tipoDeAccion, int longitud, int idUsuarioCliente, String cuerpoJSON) 
     {
@@ -62,6 +62,15 @@ public class AccionCliente extends Comunicacion
         );
 
         return String.format("%s\n%s", lineaEncabezado, cuerpoJSON);
+    }
+    
+    public static boolean esAccionDeAutenticacion(TipoDeAccion tipoDeAccion) {
+        return tipoDeAccion == TipoDeAccion.INICIAR_SESION || 
+               tipoDeAccion == TipoDeAccion.REGISTRAR_USUARIO;
+    }
+    
+    public boolean esAccionDeAutenticacion() {
+        return esAccionDeAutenticacion(this.tipoDeAccion);
     }
 
     public TipoDeAccion getTipoDeAccion() {

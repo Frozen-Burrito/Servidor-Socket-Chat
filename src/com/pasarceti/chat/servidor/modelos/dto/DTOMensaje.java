@@ -1,10 +1,6 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
 package com.pasarceti.chat.servidor.modelos.dto;
 
+import com.pasarceti.chat.servidor.modelos.TipoDestinatario;
 import java.time.LocalDateTime;
 
 /**
@@ -15,23 +11,23 @@ public class DTOMensaje
 {
     private int idMensaje;
 
-    private String contenido;
+    private final String contenido;
 
-    private LocalDateTime fecha;
+    private final LocalDateTime fecha;
 
-    private int tipoDestinatario;
+    private final TipoDestinatario tipoDestinatario;
 
     private transient int idAutor;
 
-    private int idDestinatario;
+    private final int idDestinatario;
 
-    public DTOMensaje(String contenido, int tipoDestinatario, int idDestinatario) {
-        this.idMensaje = -1;
+    public DTOMensaje(int idMensaje, String contenido, int tipoDestinatario, int idDestinatario, int idAutor) {
+        this.idMensaje = idMensaje;
         this.fecha = LocalDateTime.now();
         this.contenido = contenido;
-        this.tipoDestinatario = tipoDestinatario;
+        this.tipoDestinatario = TipoDestinatario.values()[tipoDestinatario];
         this.idDestinatario = idDestinatario;
-        this.idAutor = -1;
+        this.idAutor = idAutor;
     }
 
     public void setIdMensaje(int idMensaje) {
@@ -41,8 +37,6 @@ public class DTOMensaje
     public void setIdAutor(int idAutor) {
         this.idAutor = idAutor;
     }
-
-
 
     public int getIdMensaje() {
         return idMensaje;
@@ -56,7 +50,7 @@ public class DTOMensaje
         return fecha;
     }
 
-    public int getTipoDestinatario() {
+    public TipoDestinatario getTipoDestinatario() {
         return tipoDestinatario;
     }
 

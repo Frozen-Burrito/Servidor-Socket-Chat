@@ -18,13 +18,13 @@ public class ServidorChat
 {
     // El puerto del sistema en que está disponible este servidor.
     private final int puerto; 
-    
+
     // La cantidad de hilos que va a utilizar esta instancia de servidor.
     private static final int NUM_HILOS = 100;
 
     // La cantidad máxima de eventos que pueden estar en queueEventos a la vez.
     private static final int MAX_EVENTOS_EN_QUEUE = 100;
-    
+
     // Este Executor coordina y ejecuta todas las tareas de procesamiento de 
     // comunicación con sockets.
     private static final ExecutorService exec = Executors.newFixedThreadPool(NUM_HILOS);  

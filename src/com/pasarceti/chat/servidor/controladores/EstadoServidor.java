@@ -1,14 +1,11 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
 package com.pasarceti.chat.servidor.controladores;
 
+import com.pasarceti.chat.servidor.modelos.TipoDestinatario;
 import com.pasarceti.chat.servidor.modelos.dto.DTODestinatario;
 import com.pasarceti.chat.servidor.modelos.dto.DTOGrupo;
 import com.pasarceti.chat.servidor.modelos.dto.DTOInvitacion;
 import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
+import com.pasarceti.chat.servidor.modelos.dto.DTONuevoMensaje;
 import com.pasarceti.chat.servidor.modelos.dto.DTOUsuario;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
@@ -17,10 +14,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 
+ * @brief Almacena todo el estado de los datos del servidor y notifica a los 
+ * clientes cuando se produce un cambio en alguna de sus propiedades.
  */
 public class EstadoServidor 
 {
@@ -28,8 +25,9 @@ public class EstadoServidor
     public static final String PROP_USUARIO_ACTUAL = "USUARIO_ACTUAL";
 
     public static final String PROP_TODOS_USUARIOS = "USUARIOS";
-    public static final String PROP_TODAS_INVITACIONES = "INVITACIONES";
     public static final String PROP_TODOS_GRUPOS = "GRUPOS";
+    
+    public static final String PROP_INVITACIONES_RECIBIDAS = "INVITACIONES_RECIBIDAS";
     public static final String PROP_MENSAJES_RECIBIDOS = "MENSAJES_RECIBIDOS";
 
     private final PropertyChangeSupport soporteCambios = new PropertyChangeSupport(this);
@@ -37,33 +35,32 @@ public class EstadoServidor
     // Un mapa concurrente con <idUsuario,  socket> de los clientes conectados. 
     // Recordar que es más eficiente en iteración que en modificación.
     // Cuando un usuario está conectado, pero no ha iniciado sesió
-    private final ConcurrentHashMap<Integer, Socket> clientesConectados = new ConcurrentHashMap<>();  
-
-    // El ID del usuario conectado, es -1 si no ha iniciado sesion.
-    private final AtomicInteger idUsuario = new AtomicInteger(-1);
+    private final ConcurrentHashMap<Integer, Socket> clientesConectados = new ConcurrentHashMap<>();
 
     // Las listas con todos los registros actuales del servidor.
     private final CopyOnWriteArraySet<DTOUsuario> usuarios = new CopyOnWriteArraySet<>();
-    private final CopyOnWriteArraySet<DTOInvitacion> invitaciones = new CopyOnWriteArraySet<>();
     private final CopyOnWriteArraySet<DTOGrupo> grupos = new CopyOnWriteArraySet<>();
+    
+    // Un mapa concurrente con <idUsuario, Lista<Invitacion>> que almacena las
+    // invitaciones pendientes de cada usuario.
+    private final ConcurrentHashMap<Integer, List<DTOInvitacion>> invitaciones = new ConcurrentHashMap<>();
 
     // Un mapa concurrente con <idUsuario, Lista<Mensajes>> que almacena los
     // mensajes recibidos por los usuarios.
-    private final ConcurrentHashMap<Integer, List<DTOMensaje>> mensajesRecibidos = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, List<DTOMensaje>> mensajesEnviados = new ConcurrentHashMap<>();
 
     public EstadoServidor() 
     {
-
+        // Inicializar todas las listas de entidades para cada uno de
+        // los usuarios del sistema.
+        
+        // PROBLEMA: Esto solo maneja los usuarios existentes cuando se inicia
+        // el servidor, no los nuevos usuarios registrados mientras se ejecuta.
+        usuarios.forEach(usuario -> {
+            invitaciones.putIfAbsent(usuario.getIdUsuario(), new ArrayList<>());
+            mensajesEnviados.putIfAbsent(usuario.getIdUsuario(), new ArrayList<>());
+        });
     }
-
-//    public EstadoServidor(
-//        CopyOnWriteArraySet<DTOUsuario> usuarios, 
-//        CopyOnWriteArraySet<DTOInvitacion> invitaciones, 
-//        CopyOnWriteArraySet<DTOGrupo> grupos
-//    ) 
-//    {
-//        this.usuarios.addAll(usuarios);
-//    }
 
     public void agregarListener(String propiedad, PropertyChangeListener listener)
     {
@@ -76,7 +73,7 @@ public class EstadoServidor
         case PROP_USUARIOS_CONECTADOS:
         case PROP_TODOS_USUARIOS:
         case PROP_TODOS_GRUPOS:
-        case PROP_TODAS_INVITACIONES:
+        case PROP_INVITACIONES_RECIBIDAS:
         case PROP_MENSAJES_RECIBIDOS:
             // Agregar un listener para la propiedad requerida.
             soporteCambios.addPropertyChangeListener(propiedad, listener);
@@ -90,7 +87,6 @@ public class EstadoServidor
     {
         soporteCambios.removePropertyChangeListener(listener);
     }
-
 
     /**
      * @brief Agrega un nuevo cliente, si no existe antes, y notifica a todos los
@@ -122,17 +118,114 @@ public class EstadoServidor
     /**
     * Remueve al usuario actual de la lista de usuarios conectados y, si se remueve
     * con éxito, reinicia el valor de idUsuario a -1 y notifica a los listeners.
+    * 
+     * @param idUsuario El ID del usuario que se va a desconectar.
     */
-    public synchronized void desconectarUsuarioActual() 
+    public synchronized void desconectarUsuario(ThreadLocal<Integer> idUsuario) 
     {
-        Socket clientePrevio = clientesConectados.remove(idUsuario.get());
+        int viejoIdUsuario = idUsuario.get();
+        Socket clientePrevio = clientesConectados.remove(viejoIdUsuario);
 
         if (clientePrevio != null) 
         {
-            int viejoIdUsuario = idUsuario.getAndSet(-1);
+            idUsuario.set(-1);
 
             soporteCambios.fireIndexedPropertyChange(PROP_USUARIOS_CONECTADOS, viejoIdUsuario, clientePrevio, null);
-            soporteCambios.firePropertyChange(PROP_USUARIOS_CONECTADOS, viejoIdUsuario, idUsuario.get());
+            soporteCambios.firePropertyChange(PROP_USUARIOS_CONECTADOS, viejoIdUsuario, (int) idUsuario.get());
+        }
+    }
+    
+    /**
+     * @brief Envía un nuevo mensaje y notifica al cliente de destinatario del
+     * mensaje, que debe estar agregado como listener de MENSAJES_RECIBIDOS.
+     * 
+     * Si el tipo de destinatario es un grupo, el mensaje es enviado a cada uno 
+     * de los miembros de ese grupo.
+     * 
+     * @param mensajeEnviado El mensaje a enviar.
+    */
+    public synchronized void enviarMensaje(DTOMensaje mensajeEnviado)
+    {
+        List<Integer> idsDestinatarios = new ArrayList<>();
+        
+        if (mensajeEnviado.getTipoDestinatario() == TipoDestinatario.GRUPO) 
+        {
+            DTOGrupo grupoDestinatario = null;
+            
+            for (DTOGrupo grupo : grupos)
+            {
+                if (grupo.getId() == mensajeEnviado.getIdDestinatario())
+                {
+                    grupoDestinatario = grupo;
+                    break;
+                }
+            }
+            
+            if (grupoDestinatario != null)
+            {
+                idsDestinatarios.addAll(grupoDestinatario.getIdsUsuariosMiembro());
+            }
+        }
+        else 
+        {
+            idsDestinatarios.add(mensajeEnviado.getIdDestinatario());
+        }
+        
+        idsDestinatarios.forEach(destinatario -> {
+            enviarMensajeAUsuario(destinatario, mensajeEnviado);
+        });
+    }
+    
+    /**
+     * @brief Envía un nuevo mensaje y notifica al cliente de destinatario del
+     * mensaje, que debe estar agregado como listener de MENSAJES_RECIBIDOS.
+     * 
+     * @param destinatario El ID del usuario que va a recibir este mensaje.
+     * @param mensajeEnviado El mensaje a enviar.
+    */
+    public synchronized void enviarMensajeAUsuario(int destinatario, DTOMensaje mensajeEnviado)
+    {
+        // Agregar el mensaje enviado a la lista de mensajes recibidos del
+        // destinatario del mensaje. Se agrega en la primera posición, de esta 
+        // forma ordenando mensajes más recientes antes.
+        List<DTOMensaje> mensajesDelDestinatario = mensajesEnviados.get(destinatario);
+        DTOMensaje mensajeAnterior = mensajesDelDestinatario.isEmpty()
+                ? null
+                : mensajesDelDestinatario.get(0);
+        
+        mensajesDelDestinatario.add(0, mensajeEnviado);
+
+        soporteCambios.fireIndexedPropertyChange(PROP_MENSAJES_RECIBIDOS, mensajeEnviado.getIdDestinatario(), mensajeAnterior, mensajeEnviado);
+    }
+    
+    /**
+     * @brief Agrega una nueva invitación a la lista de invitaciones pendientes 
+     * del usuario invitado. Luego, notifica usuario invitado sobre la invitación
+     * recibida. 
+     * 
+     * Para recibir este evento, debe estar agregado como listener de 
+     * PROP_INVITACIONES_RECIBIDAS.
+     * 
+     * @param invitacion La invitación enviada al otro usuario.
+     */
+    public synchronized void enviarInvitacion(DTOInvitacion invitacion)
+    {
+        List<DTOInvitacion> invitacionesPendientes = invitaciones.get(invitacion.getIdUsuarioInvitado());
+        
+        // Obtener el número de invitaciones antes de agregar la nueva.
+        int longitudAnterior = invitacionesPendientes.size();
+        // add() retorna true si la colección fue modificada.
+        boolean invModificadas = invitacionesPendientes.add(invitacion);
+        
+        if (invModificadas && longitudAnterior == invitacionesPendientes.size() -1)
+        {
+            // Si hubo un cambio, notificar a los listeners.
+            soporteCambios.fireIndexedPropertyChange(
+                PROP_INVITACIONES_RECIBIDAS, 
+                longitudAnterior, 
+                null, 
+                invitacion
+            );
         }
     }
 
@@ -192,10 +285,11 @@ public class EstadoServidor
     }
 
     /**
-     * @brief Busca todas las invitaciones donde su idUsuarioInvitado sea 
-     * idéntico a idUsuario.
+     * @brief Busca todas las invitaciones pendientes de un usuario en 
+     * especifico.
      * 
      * @param idUsuario El ID del usuario a remover.
+     * @return La coleccion con todas las invitaciones pendientes.
     */
     public synchronized List<DTOInvitacion> getInvitacionesUsuario(int idUsuario)
     {
@@ -214,14 +308,7 @@ public class EstadoServidor
 
     public List<DTOMensaje> getMensajesUsuario(int idUsuario)
     {
-        final List<DTOMensaje> mensajes = mensajesRecibidos.get(idUsuario);
-
-        return (mensajes != null) ? mensajes : new ArrayList<>();
-    }
-
-    public List<DTOMensaje> getMensajesUsuarioActual()
-    {
-        final List<DTOMensaje> mensajes = mensajesRecibidos.get(idUsuario.get());
+        final List<DTOMensaje> mensajes = mensajesEnviados.get(idUsuario);
 
         return (mensajes != null) ? mensajes : new ArrayList<>();
     }
@@ -230,15 +317,6 @@ public class EstadoServidor
     public ConcurrentHashMap<Integer, Socket> getClientesConectados() 
     {
         return clientesConectados;
-    }
-
-    /**
-     * Retorna el ID del usuario actual, que ha iniciado sesión.
-     * Si el cliente no ha iniciado sesión, esto retorna -1.
-     */
-    public synchronized int getIdUsuarioActual() 
-    {
-        return idUsuario.get();
     }
 
     public CopyOnWriteArraySet<DTOUsuario> getUsuarios() {
@@ -254,6 +332,6 @@ public class EstadoServidor
     }
 
     public ConcurrentHashMap<Integer, List<DTOMensaje>> getMensajesRecibidos() {
-        return mensajesRecibidos;
+        return mensajesEnviados;
     }
 }

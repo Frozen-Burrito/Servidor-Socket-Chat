@@ -7,7 +7,7 @@ import java.util.List;
  *
  * 
  */
-public class DTOGrupo extends DTODestinatario 
+public class DTONuevoGrupo extends DTODestinatario 
 {
     private final int idGrupo;
 
@@ -15,7 +15,7 @@ public class DTOGrupo extends DTODestinatario
 
     private List<Integer> idsUsuariosMiembro = new ArrayList<>();
 
-    public DTOGrupo(int idGrupo, String nombre, List<Integer> idsUsuarios) 
+    public DTONuevoGrupo(int idGrupo, String nombre, List<Integer> idsUsuarios) 
     {
         this.idGrupo = idGrupo;
         this.nombre = nombre;
