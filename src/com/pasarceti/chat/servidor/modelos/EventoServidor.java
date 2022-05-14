@@ -14,7 +14,7 @@ package com.pasarceti.chat.servidor.modelos;
 public class EventoServidor extends Comunicacion {
 
     private TipoDeEvento tipoDeEvento;
-
+    
     public EventoServidor(TipoDeEvento tipoDeEvento, int idUsuarioCliente, String cuerpoJSON) 
     {
         // Una solicitud de acción es exitosa por defecto.
@@ -22,6 +22,11 @@ public class EventoServidor extends Comunicacion {
 
         // Especificar el tipo de acción del cliente.
         this.tipoDeEvento = tipoDeEvento;
+    }
+    
+    public EventoServidor(TipoDeEvento tipoDeEvento, String cuerpoJSON) 
+    {
+        this(tipoDeEvento, -1, cuerpoJSON);
     }
 
     public String comoRespuesta() 

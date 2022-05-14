@@ -15,11 +15,11 @@ public class DTOMensaje
 
     private final LocalDateTime fecha;
 
-    private final TipoDestinatario tipoDestinatario;
+    private TipoDestinatario tipoDestinatario;
 
     private transient int idAutor;
 
-    private final int idDestinatario;
+    private int idDestinatario;
 
     public DTOMensaje(int idMensaje, String contenido, int tipoDestinatario, int idDestinatario, int idAutor) {
         this.idMensaje = idMensaje;
@@ -62,5 +62,13 @@ public class DTOMensaje
         return idDestinatario;
     }
 
+    public void setIdDestinatario(int idDestinatario) 
+    {
+        this.idDestinatario = idDestinatario;
+    }
 
+    public void setTipoDestinatario(TipoDestinatario tipoDestinatario) 
+    {
+        this.tipoDestinatario = tipoDestinatario;
+    }
 }

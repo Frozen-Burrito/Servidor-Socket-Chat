@@ -1,11 +1,31 @@
 package com.pasarceti.chat.servidor.controladores;
 
+import com.google.gson.Gson;
 import com.pasarceti.chat.servidor.modelos.Evento;
+import com.pasarceti.chat.servidor.modelos.EventoServidor;
+import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
+import com.pasarceti.chat.servidor.modelos.dto.DTOAbandonarGrupo;
+import com.pasarceti.chat.servidor.modelos.dto.DTOGrupo;
+import com.pasarceti.chat.servidor.modelos.dto.DTOIdEntidad;
+import com.pasarceti.chat.servidor.modelos.dto.DTOInvAceptada;
+import com.pasarceti.chat.servidor.modelos.dto.DTOInvitacion;
+import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
+import com.pasarceti.chat.servidor.modelos.dto.DTOModInvitacion;
+import com.pasarceti.chat.servidor.modelos.dto.DTOUsuario;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -16,7 +36,7 @@ import java.util.logging.Logger;
 /**
 * @brief El servidor que realiza toda la comunicación con los clientes del chat.
 */
-public class ServidorChat implements Runnable
+public class ServidorChat implements Runnable, PropertyChangeListener
 {
     // El puerto del sistema en que está disponible este servidor.
     private final int puerto; 
@@ -70,6 +90,10 @@ public class ServidorChat implements Runnable
                 String.valueOf(puerto)
             ));
             
+            // Registrar el servidor como listener de eventos, para poder notificar
+            // a los clientes debidos.
+            estado.agregarListener(this);
+            
             socketServidor = new ServerSocket(puerto);
 
             logger.info("Servidor iniciado, esperando conexiones.");
@@ -104,8 +128,309 @@ public class ServidorChat implements Runnable
             logger.log(Level.SEVERE, "Error iniciando el servidor: {0}", e.getMessage());
             detener();
         }
+        finally 
+        {
+            estado.removerListener(this);
+        }
     }
     
+    @Override
+    public void propertyChange(PropertyChangeEvent evento) 
+    {
+        final Gson gson = new Gson();
+        EventoServidor notificacion = null;
+        
+        final ConcurrentHashMap<Integer, Socket> usuariosConectados = estado.getClientesConectados();
+        
+        final Set<Entry<Integer, Socket>> receptores = new HashSet<>();
+
+        switch (evento.getPropertyName())
+        {
+        case EstadoServidor.PROP_USUARIOS_CONECTADOS:
+            // Un cambio en los usuarios conectados es enviado a todos los demas
+            // usuarios.
+            receptores.addAll(usuariosConectados.entrySet());
+            
+            if (evento.getNewValue() != null) 
+            {
+                // Si el nuevo valor no es null, un usuario se conectó.
+                notificacion = new EventoServidor(
+                    TipoDeEvento.USUARIO_CONECTADO, 
+                    gson.toJson(evento.getNewValue())
+                );
+            }
+            else 
+            {
+                // Si el nuevo valor es null, un usuario se desconectó
+                notificacion = new EventoServidor(
+                    TipoDeEvento.USUARIO_DESCONECTADO, 
+                    gson.toJson(evento.getOldValue())
+                );
+            }
+            break;
+        case EstadoServidor.PROP_MENSAJES_RECIBIDOS:
+            if (evento.getNewValue() instanceof DTOMensaje)
+            {
+                final DTOMensaje mensaje = (DTOMensaje) evento.getNewValue();
+                
+                final Socket clienteDest = usuariosConectados.get(mensaje.getIdDestinatario());
+                
+                // Solo enviar el evento si el cliente del destinatario esta conectado.
+                if (clienteDest != null)
+                {
+                    final Entry<Integer, Socket> destinatario = new AbstractMap.SimpleImmutableEntry<>(
+                        mensaje.getIdDestinatario(),
+                        clienteDest
+                    );
+
+                    // Si el mensaje fue agregado para este usuario, notificar con 
+                    // los datos del nuevo mensaje.
+                    receptores.add(destinatario);
+
+                    final String jsonMensajeRecibido = gson.toJson(mensaje);
+
+                    notificacion = new EventoServidor(
+                        TipoDeEvento.MENSAJE_ENVIADO, 
+                        jsonMensajeRecibido
+                    );
+                }
+            }
+            
+            break;
+        case EstadoServidor.PROP_INVITACIONES_RECIBIDAS:
+            notificacion = eventoPorCambioEnInvitacion(evento, usuariosConectados, receptores);
+            break;
+        case EstadoServidor.PROP_GRUPOS_EXISTENTES:
+            if (evento.getOldValue() instanceof Integer && evento.getNewValue() == null)
+            {
+                // El grupo fue eliminado.
+                final int idGrupoEliminado = (int) evento.getOldValue();
+                
+                DTOGrupo grupo = estado.getGrupoPorId(idGrupoEliminado);
+                
+                if (grupo != null)
+                {
+                    grupo.getIdsUsuariosMiembro().forEach(idMiembro -> {
+                        
+                        final Socket socketMiembro = usuariosConectados.get(idMiembro);
+                        
+                        if (socketMiembro != null) 
+                        {
+                            // Agregar como receptores a todos los usuarios conectados 
+                            // que forman parte del grupo.
+                            receptores.add(new AbstractMap.SimpleImmutableEntry<>(
+                                idMiembro,
+                                socketMiembro
+                            ));
+                        }
+                    });
+                    
+                    DTOIdEntidad objIdGrupo = new DTOIdEntidad(grupo.getId());
+                    
+                    String jsonIdGrupoElim = gson.toJson(objIdGrupo);
+                    
+                    notificacion = new EventoServidor(
+                        TipoDeEvento.GRUPO_ELIMINADO, 
+                        jsonIdGrupoElim
+                    );
+                }
+            }
+            else if (evento.getOldValue() instanceof DTOAbandonarGrupo && evento.getNewValue() == null)
+            {
+                // Un usuario abandono el grupo.
+                final DTOAbandonarGrupo abandono = (DTOAbandonarGrupo) evento.getOldValue();
+                
+                // Enviar evento del servidor a cada miembro del grupo que este conectado.
+                abandono.getGrupoAbandonado().getIdsUsuariosMiembro().forEach(idMiembro -> {
+                        
+                    final Socket socketMiembro = usuariosConectados.get(idMiembro);
+
+                    if (socketMiembro != null) 
+                    {
+                        // Agregar como receptores a todos los usuarios conectados 
+                        // que forman parte del grupo.
+                        receptores.add(new AbstractMap.SimpleImmutableEntry<>(
+                            idMiembro,
+                            socketMiembro
+                        ));
+                    }
+                });
+                
+                final DTOIdEntidad idUsuario = new DTOIdEntidad(abandono.getIdUsuarioQueAbandono());
+                
+                final String idUsuarioJson = gson.toJson(idUsuario);
+                
+                notificacion = new EventoServidor(
+                    TipoDeEvento.USUARIO_ABANDONO_GRUPO, 
+                    idUsuarioJson
+                );
+            }
+            break;
+        default:
+            notificacion = new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR, 
+                "El servidor iba a enviar un evento, pero se confundió."
+            );
+        }
+        
+        // Si existe un evento para notificar, enviarlo a todos los clientes 
+        // receptores como notificacion.
+        if (notificacion != null) 
+        {
+            final EventoServidor eventoServidor = notificacion;
+            
+            receptores.forEach(receptor -> {
+
+                try 
+                {
+                    Socket cliente = receptor.getValue();
+                    int idUsuario = receptor.getKey();
+                    
+                    // Usar el id de cada cliente al enviarle su notificación.
+                    eventoServidor.setIdUsuarioCliente(idUsuario);
+                    
+                    ManejadorClientes.enviarEventoASocket(cliente, eventoServidor);
+                } 
+                catch (IOException e) 
+                {
+                    queueEventos.offer(new Evento(TipoDeEvento.ERROR_SERVIDOR, e.getMessage()));
+                }
+            });
+        }
+    }
+    
+    /**
+     * Determina el tipo de evento producido por un cambio en las invitaciones y
+     * produce un EventoServidor correspondiente.
+     * 
+     * @param evento El evento de cambio en las invitaciones.
+     * @param usuariosConectados Los usuarios conectados actualmente.
+     * @param receptores Los posibles receptores del EventoServidor producido.
+     * @return El EventoServidor adecuado.
+     */
+    private EventoServidor eventoPorCambioEnInvitacion(
+        PropertyChangeEvent evento, 
+        ConcurrentHashMap<Integer, Socket> usuariosConectados,
+        Set<Entry<Integer, Socket>> receptores
+    ) 
+    {
+        final Gson gson = new Gson();
+        EventoServidor notificacion = null;
+        
+        if (evento.getOldValue() instanceof DTOInvAceptada)
+        {
+            // La invitación de amistad o de grupo del usuario fue aceptada.
+            final DTOInvitacion invitacion = ((DTOInvAceptada) evento.getOldValue()).getInvitacion();
+            final DTOUsuario usuarioQueAcepto = ((DTOInvAceptada) evento.getOldValue()).getUsuarioQueAcepto();
+
+            final String jsonOtroUsuario = gson.toJson(usuarioQueAcepto);
+                
+            // Solo enviar el evento si el cliente del destinatario esta conectado.       
+            if (invitacion.esDeAmistad())
+            {
+                final Socket clienteQueInvito = usuariosConectados.get(invitacion.getIdUsuarioQueInvita());
+                            
+                if (clienteQueInvito != null)
+                {
+                    // El usuario tiene un nuevo amigo. Notificarle al usuario con 
+                    // los datos del nuevo amigo.
+                    receptores.add(new AbstractMap.SimpleImmutableEntry<>(
+                        invitacion.getIdUsuarioQueInvita(),
+                        clienteQueInvito
+                    ));
+
+                    notificacion = new EventoServidor(
+                        TipoDeEvento.AMISTAD_ACEPTADA,
+                        jsonOtroUsuario
+                    );
+                }
+            }
+            else 
+            {
+                DTOGrupo grupo = estado.getGrupoPorId(invitacion.getIdGrupo());
+                
+                // Enviar la notificacion si el grupo existe.
+                if (grupo != null)
+                {
+                    grupo.getIdsUsuariosMiembro().forEach(idMiembro -> {
+                        
+                        final Socket socketMiembro = usuariosConectados.get(idMiembro);
+                        
+                        if (socketMiembro != null) 
+                        {
+                            // Agregar como receptores a todos los usuarios conectados 
+                            // que forman parte del grupo.
+                            receptores.add(new AbstractMap.SimpleImmutableEntry<>(
+                                idMiembro,
+                                socketMiembro
+                            ));
+                        }
+                    });
+                    
+                    notificacion = new EventoServidor(
+                        TipoDeEvento.USUARIO_SE_UNIO_A_GRUPO,
+                        jsonOtroUsuario
+                    );
+                }
+            }
+        }
+        else if (evento.getNewValue() instanceof DTOInvitacion && evento.getOldValue() == null)
+        {
+            final DTOInvitacion invitacion = (DTOInvitacion) evento.getNewValue();
+            
+            // La invitación fue enviada, notificar al usuario invitado.
+            final Socket clienteInvitado = usuariosConectados.get(invitacion.getIdUsuarioInvitado());
+            
+            if (clienteInvitado != null)
+            {
+                receptores.add(new AbstractMap.SimpleImmutableEntry<>(
+                    invitacion.getIdUsuarioInvitado(),
+                    clienteInvitado
+                ));
+                
+                final String jsonInvitacion = gson.toJson(invitacion);
+                
+                notificacion = new EventoServidor(
+                    TipoDeEvento.INVITACION_ENVIADA,
+                    jsonInvitacion
+                );
+            }
+        }
+        else if (evento.getNewValue() == null && evento.getOldValue() instanceof DTOInvitacion)
+        {
+            //TODO: Revisar si es necesario este evento.
+            final DTOInvitacion invRechazada = (DTOInvitacion) evento.getOldValue();
+            
+            // La invitación fue enviada, notificar al usuario invitado.
+            final Socket clienteQueInvita = usuariosConectados.get(invRechazada.getIdUsuarioQueInvita());
+            
+            // Entregar evento del servidor solo al cliente que envió la notificación, 
+            // si es que está conectado.
+            if (clienteQueInvita != null)
+            {
+                receptores.add(new AbstractMap.SimpleImmutableEntry<>(
+                    invRechazada.getIdUsuarioQueInvita(),
+                    clienteQueInvita
+                ));
+                
+                final DTOModInvitacion idInvRechazada = new DTOModInvitacion(invRechazada.getId());
+            
+                final String jsonInvRechazada = gson.toJson(idInvRechazada);
+
+                // La invitación fue rechazada.
+                notificacion = new EventoServidor(
+                    TipoDeEvento.AMISTAD_RECHAZADA,
+                    jsonInvRechazada
+                );
+            }
+        }
+        
+        return notificacion;
+    }
+    
+    /**
+     * Cierra el servidor de sockets, interrumpiendo cualquier comunicación pendiente.
+     */
     public void detener()
     {
         if (socketServidor != null) 

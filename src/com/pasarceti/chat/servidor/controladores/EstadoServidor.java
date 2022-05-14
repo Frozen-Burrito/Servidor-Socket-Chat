@@ -1,11 +1,12 @@
 package com.pasarceti.chat.servidor.controladores;
 
 import com.pasarceti.chat.servidor.modelos.TipoDestinatario;
+import com.pasarceti.chat.servidor.modelos.dto.DTOAbandonarGrupo;
 import com.pasarceti.chat.servidor.modelos.dto.DTODestinatario;
 import com.pasarceti.chat.servidor.modelos.dto.DTOGrupo;
+import com.pasarceti.chat.servidor.modelos.dto.DTOInvAceptada;
 import com.pasarceti.chat.servidor.modelos.dto.DTOInvitacion;
 import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
-import com.pasarceti.chat.servidor.modelos.dto.DTONuevoMensaje;
 import com.pasarceti.chat.servidor.modelos.dto.DTOUsuario;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
@@ -25,7 +26,7 @@ public class EstadoServidor
     public static final String PROP_USUARIO_ACTUAL = "USUARIO_ACTUAL";
 
     public static final String PROP_TODOS_USUARIOS = "USUARIOS";
-    public static final String PROP_TODOS_GRUPOS = "GRUPOS";
+    public static final String PROP_GRUPOS_EXISTENTES = "GRUPOS";
     
     public static final String PROP_INVITACIONES_RECIBIDAS = "INVITACIONES_RECIBIDAS";
     public static final String PROP_MENSAJES_RECIBIDOS = "MENSAJES_RECIBIDOS";
@@ -61,7 +62,25 @@ public class EstadoServidor
             mensajesEnviados.putIfAbsent(usuario.getIdUsuario(), new ArrayList<>());
         });
     }
-
+    
+    /**
+     * Registra un listener suscrito a los cambios en todas las propiedades 
+     * de estado del servidor.
+     * 
+     * @param listener El listener a agregar.
+     */
+    public void agregarListener(PropertyChangeListener listener)
+    {
+        soporteCambios.addPropertyChangeListener(listener);
+    }
+    
+    /**
+     * Agrega un listener suscrito a los cambios en una propiedad específica del
+     * estado del servidor.
+     * 
+     * @param propiedad La propiedad a la que va a escuchar el listener.
+     * @param listener El listener a agregar.
+     */
     public void agregarListener(String propiedad, PropertyChangeListener listener)
     {
         if (listener == null) {
@@ -72,7 +91,7 @@ public class EstadoServidor
         {
         case PROP_USUARIOS_CONECTADOS:
         case PROP_TODOS_USUARIOS:
-        case PROP_TODOS_GRUPOS:
+        case PROP_GRUPOS_EXISTENTES:
         case PROP_INVITACIONES_RECIBIDAS:
         case PROP_MENSAJES_RECIBIDOS:
             // Agregar un listener para la propiedad requerida.
@@ -97,9 +116,16 @@ public class EstadoServidor
     */
     public synchronized void agregarCliente(int idUsuario, Socket socket)
     {
-        Socket clientePrevio = clientesConectados.putIfAbsent(idUsuario, socket);
+        clientesConectados.putIfAbsent(idUsuario, socket);
+        
+        DTOUsuario usuario = getUsuarioPorId(idUsuario);
 
-        soporteCambios.fireIndexedPropertyChange(PROP_USUARIOS_CONECTADOS, idUsuario, clientePrevio, socket);
+        soporteCambios.fireIndexedPropertyChange(
+            PROP_USUARIOS_CONECTADOS, 
+            usuario.getIdUsuario(), 
+            null, 
+            usuario
+        );
     }
 
     /**
@@ -111,8 +137,11 @@ public class EstadoServidor
     public synchronized void removerCliente(int idUsuario)
     {
         Socket clientePrevio = clientesConectados.remove(idUsuario);
-
-        soporteCambios.fireIndexedPropertyChange(PROP_USUARIOS_CONECTADOS, idUsuario, clientePrevio, null);
+        
+        if (clientePrevio != null) 
+        {
+            soporteCambios.firePropertyChange(PROP_USUARIOS_CONECTADOS, idUsuario, null);
+        }
     }
 
     /**
@@ -147,18 +176,9 @@ public class EstadoServidor
     {
         List<Integer> idsDestinatarios = new ArrayList<>();
         
-        if (mensajeEnviado.getTipoDestinatario() == TipoDestinatario.GRUPO) 
+        if (mensajeEnviado.getTipoDestinatario().equals(TipoDestinatario.GRUPO)) 
         {
-            DTOGrupo grupoDestinatario = null;
-            
-            for (DTOGrupo grupo : grupos)
-            {
-                if (grupo.getId() == mensajeEnviado.getIdDestinatario())
-                {
-                    grupoDestinatario = grupo;
-                    break;
-                }
-            }
+            DTOGrupo grupoDestinatario = getGrupoPorId(mensajeEnviado.getIdDestinatario());
             
             if (grupoDestinatario != null)
             {
@@ -179,18 +199,20 @@ public class EstadoServidor
      * @brief Envía un nuevo mensaje y notifica al cliente de destinatario del
      * mensaje, que debe estar agregado como listener de MENSAJES_RECIBIDOS.
      * 
-     * @param destinatario El ID del usuario que va a recibir este mensaje.
+     * @param idDestinatario El ID del usuario que va a recibir este mensaje.
      * @param mensajeEnviado El mensaje a enviar.
     */
-    public synchronized void enviarMensajeAUsuario(int destinatario, DTOMensaje mensajeEnviado)
+    public synchronized void enviarMensajeAUsuario(int idDestinatario, DTOMensaje mensajeEnviado)
     {
         // Agregar el mensaje enviado a la lista de mensajes recibidos del
         // destinatario del mensaje. Se agrega en la primera posición, de esta 
         // forma ordenando mensajes más recientes antes.
-        List<DTOMensaje> mensajesDelDestinatario = mensajesEnviados.get(destinatario);
+        List<DTOMensaje> mensajesDelDestinatario = mensajesEnviados.get(idDestinatario);
         DTOMensaje mensajeAnterior = mensajesDelDestinatario.isEmpty()
                 ? null
                 : mensajesDelDestinatario.get(0);
+        
+        mensajeEnviado.setIdDestinatario(idDestinatario);
         
         mensajesDelDestinatario.add(0, mensajeEnviado);
 
@@ -226,6 +248,42 @@ public class EstadoServidor
                 invitacion
             );
         }
+    }
+    
+    public synchronized void invitacionAceptada(DTOInvAceptada invitacionAceptada)
+    {
+        soporteCambios.firePropertyChange(
+            PROP_INVITACIONES_RECIBIDAS,
+            invitacionAceptada,
+            null
+        );
+    }
+    
+    public synchronized void invitacionRechazada(DTOInvitacion invitacion)
+    {
+        soporteCambios.firePropertyChange(
+            PROP_INVITACIONES_RECIBIDAS,
+            invitacion,
+            null
+        );
+    }
+    
+    public synchronized void usuarioAbandono(DTOAbandonarGrupo grupoAbandonado)
+    {
+        soporteCambios.firePropertyChange(
+            PROP_GRUPOS_EXISTENTES,
+            grupoAbandonado,
+            null
+        );
+    }
+    
+    public synchronized void grupoEliminado(int idGrupo)
+    {
+        soporteCambios.firePropertyChange(
+            PROP_GRUPOS_EXISTENTES,
+            (Integer) idGrupo,
+            null
+        );
     }
 
     /**
@@ -296,6 +354,19 @@ public class EstadoServidor
     {
         return invitaciones.get(idUsuario);
     }
+    
+    public DTOUsuario getUsuarioPorId(int idUsuario) 
+    {
+        for (DTOUsuario usuario : usuarios) 
+        {
+            if (usuario.getIdUsuario() == idUsuario) 
+            {
+                return usuario;
+            }
+        }
+        
+        return null;
+    }
 
     public List<DTOMensaje> getMensajesUsuario(int idUsuario)
     {
@@ -320,6 +391,22 @@ public class EstadoServidor
 
     public CopyOnWriteArraySet<DTOGrupo> getGrupos() {
         return grupos;
+    }
+    
+    public DTOGrupo getGrupoPorId(int idGrupo)
+    {
+        DTOGrupo grupoConId = null;
+                    
+        for (DTOGrupo grupo : grupos)
+        {
+            if (grupo.getId() == idGrupo)
+            {
+                grupoConId = grupo;
+                break;
+            }
+        }
+        
+        return grupoConId;
     }
 
     public ConcurrentHashMap<Integer, List<DTOMensaje>> getMensajesRecibidos() {

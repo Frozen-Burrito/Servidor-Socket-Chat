@@ -23,7 +23,7 @@ public class Comunicacion
 
     protected String cuerpoJSON;
 
-    public Comunicacion(boolean fueExitosa, int longitud, int idUsuarioCliente, String cuerpoJSON) 
+    protected Comunicacion(boolean fueExitosa, int longitud, int idUsuarioCliente, String cuerpoJSON) 
     {
         this.fueExitosa = fueExitosa;
         this.longitudCuerpo = longitud;

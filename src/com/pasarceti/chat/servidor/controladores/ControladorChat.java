@@ -7,12 +7,12 @@ import com.google.gson.JsonSyntaxException;
 import com.pasarceti.chat.servidor.modelos.AccionCliente;
 import com.pasarceti.chat.servidor.modelos.EventoServidor;
 import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
+import com.pasarceti.chat.servidor.modelos.dto.DTOAbandonarGrupo;
 import com.pasarceti.chat.servidor.modelos.dto.DTOCambioPassword;
 import com.pasarceti.chat.servidor.modelos.dto.DTOCredUsuario;
 import com.pasarceti.chat.servidor.modelos.dto.DTOGrupo;
-import com.pasarceti.chat.servidor.modelos.dto.DTOIdGrupo;
-import com.pasarceti.chat.servidor.modelos.dto.DTOInvAmigoAceptada;
-import com.pasarceti.chat.servidor.modelos.dto.DTOInvGrupoAceptada;
+import com.pasarceti.chat.servidor.modelos.dto.DTOIdEntidad;
+import com.pasarceti.chat.servidor.modelos.dto.DTOInvAceptada;
 import com.pasarceti.chat.servidor.modelos.dto.DTOInvitacion;
 import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
 import com.pasarceti.chat.servidor.modelos.dto.DTONuevoMensaje;
@@ -166,7 +166,6 @@ public class ControladorChat
                     //TODO: Obtener datos del usuario (Amigos, grupos, invitaciones).
 
                     estadoServidor.agregarCliente(idUsuarioDeBD, cliente);
-                    
 
                     // Usuario accedio con exito.
                     return new EventoServidor(
@@ -275,7 +274,7 @@ public class ControladorChat
                         idUsuario.get()
                     );
                     
-                    //TODO: Enviar mensaje a destinatario(s).
+                    // Notificar a destinatarios, enviarles el mensaje.
                     estadoServidor.enviarMensaje(mensajeEnviado);
 
                     // El mensaje fue enviado.
@@ -368,40 +367,38 @@ public class ControladorChat
             DTOModInvitacion idInvitacion = gson.fromJson(json, DTOModInvitacion.class);
 
             //TODO: Intentar obtener la invitación con idInvitacion desde la BD.
-            DTOInvitacion invitacionAceptada = new DTOInvitacion(0, idUsuario.get(), null);
+            DTOInvitacion invitacion = new DTOInvitacion(0, idUsuario.get(), null);
 
-            if (invitacionAceptada != null) 
+            //TODO: Intentar obtener el usuario que invitó desde la BD.
+            DTOUsuario usuarioQueInvito = new DTOUsuario(2, "Juan");
+
+            if (invitacion != null && usuarioQueInvito != null) 
             {
                 // Si la invitación existe en BD, aceptarla.
                 
                 String jsonResultado = "";
                 
-                if (invitacionAceptada.esDeAmistad())
+                if (invitacion.esDeAmistad())
                 {
                     //TODO: Crear en BD amistad entre usuario actual y el usuario que 
                     // envio la invitacion.
-                    
-                    DTOInvAmigoAceptada datosAmigo = new DTOInvAmigoAceptada(
-                        invitacionAceptada.getId(),
-                        new DTOUsuario(2, "juanito")
-                    );
-                    
-                    jsonResultado = gson.toJson(datosAmigo);
                 }
                 else 
                 {
                     //TODO: Agregar en BD al usuario como miembro del grupo.
-                    
-                    DTOInvGrupoAceptada datosGrupo = new DTOInvGrupoAceptada(
-                        invitacionAceptada.getId(),
-                        new DTOGrupo(0, "un grupo chido", new ArrayList<>())
-                    );
-                    
-                    jsonResultado = gson.toJson(datosGrupo);
                 }
                 
-                //TODO: Enviar notificacion de invitacion aceptada.
-                //TODO: Eliminar invitacion aceptada. 
+                DTOInvAceptada invitacionAceptada = new DTOInvAceptada(
+                    invitacion,
+                    usuarioQueInvito
+                );
+
+                jsonResultado = gson.toJson(invitacionAceptada);
+                
+                // Notificar al otro usuario sobre su nueva amistad.
+                estadoServidor.invitacionAceptada(invitacionAceptada);
+                
+                //TODO: Eliminar invitacion aceptada de la BD. 
                 
                 resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
                 resultado.setCuerpoJSON(jsonResultado);
@@ -441,6 +438,8 @@ public class ControladorChat
             if (invitacionRechazada != null) 
             {                
                 //TODO: Enviar notificacion de invitacion rechazada.
+                estadoServidor.invitacionRechazada(invitacionRechazada);
+                
                 //TODO: Eliminar invitacion rechazada. 
                 
                 // Enviar confirmacion de id de la invitacion rechazada al cliente.
@@ -486,11 +485,17 @@ public class ControladorChat
                 if (miembrosExisten)
                 {
                     //TODO: Crear nuevo grupo.
-                    //TODO: Enviar notificación de grupo creado.
-                    //TODO: Enviar invitacion a miembros iniciales.
+                    int idNuevoGrupo = 0;
+                    
+                    // Enviar invitacion a miembros iniciales.
+                    for (int idMiembro : nuevoGrupo.getIdsUsuariosMiembro())
+                    {
+                        DTOInvitacion invitacion = new DTOInvitacion(idUsuario.get(), idMiembro, idNuevoGrupo);
+                        estadoServidor.enviarInvitacion(invitacion);
+                    }
                     
                     // Enviar confirmacion con datos del grupo creado al cliente.
-                    DTOGrupo grupoCreado = new DTOGrupo(0, nuevoGrupo.getNombre(), nuevoGrupo.getIdsUsuariosMiembro());
+                    DTOGrupo grupoCreado = new DTOGrupo(idNuevoGrupo, nuevoGrupo.getNombre(), nuevoGrupo.getIdsUsuariosMiembro());
                     String jsonResultado = gson.toJson(grupoCreado);
 
                     resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
@@ -529,20 +534,25 @@ public class ControladorChat
         
         try 
         {
-            DTOIdGrupo idGrupoAbandonado = gson.fromJson(json, DTOIdGrupo.class);
+            DTOIdEntidad idGrupoAbandonado = gson.fromJson(json, DTOIdEntidad.class);
 
             //TODO: Revisar si existe el grupo y si el usuario es miembro.
-            boolean grupoExiste = true;
+            DTOGrupo grupo = new DTOGrupo(idGrupoAbandonado.getIdGrupo(), "Grupo de prueba", new ArrayList<>());
             boolean usuarioEsMiembro = true;
 
-            if (grupoExiste && usuarioEsMiembro) 
+            if (grupo != null && usuarioEsMiembro) 
             {
                 //TODO: Eliminar usuario del grupo.
-                //TODO: Enviar notificación de usuario abandono grupo.
-
+                
+                // Enviar notificación de usuario abandono grupo.
+                estadoServidor.usuarioAbandono(new DTOAbandonarGrupo(idUsuario.get(), grupo));
+                
                 //TODO: Eliminar grupo, si tiene menos de 3 miembros.
-                //if (grupo.numMiembros < 3)
-                //TODO: Enviar notificación de grupo eliminado.
+                if (grupo.getIdsUsuariosMiembro().size() < 3)
+                {
+                    // Enviar notificación de grupo eliminado.
+                    estadoServidor.grupoEliminado(grupo.getId());
+                }
 
                 // Enviar confirmacion con datos del grupo abandonado al cliente.
                 String jsonResultado = gson.toJson(idGrupoAbandonado);

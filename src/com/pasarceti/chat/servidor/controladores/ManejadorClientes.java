@@ -1,6 +1,5 @@
 package com.pasarceti.chat.servidor.controladores;
 
-import com.google.gson.Gson;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -8,25 +7,19 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import com.pasarceti.chat.servidor.modelos.AccionCliente;
 import com.pasarceti.chat.servidor.modelos.Evento;
 import com.pasarceti.chat.servidor.modelos.EventoServidor;
 import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
-import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
 
 /**
  * Esta clase ejecuta la "tarea" de manejar la comunicacion con los sockets 
  * cliente.
  */
-public class ManejadorClientes implements Runnable, PropertyChangeListener
+public class ManejadorClientes implements Runnable
 {
     // Los milisegundos que puede llegar a bloquear el hilo cuando
     // envía un evento al queueEventos.
@@ -64,9 +57,6 @@ public class ManejadorClientes implements Runnable, PropertyChangeListener
     {
         try 
         {
-            // Agregar este socket como listener de eventos de usuarios conectados.
-            estadoServidor.agregarListener(EstadoServidor.PROP_USUARIOS_CONECTADOS, this);
-
             // Incializar los lectores para obtener los caracteres y líneas de 
             // la comunicación del cliente.
             InputStreamReader entradaSocket = new InputStreamReader(socket.getInputStream());
@@ -88,7 +78,6 @@ public class ManejadorClientes implements Runnable, PropertyChangeListener
                     // Hacer cleanup necesario.
                     System.out.println("El cliente se desconectó, cerrando el socket.");
                     
-                    estadoServidor.removerListener(this);
                     estadoServidor.desconectarUsuario(idUsuario);
                     
                     socket.close();
@@ -109,91 +98,6 @@ public class ManejadorClientes implements Runnable, PropertyChangeListener
         {
             System.out.println("Excepcion: " + e.getMessage());
         }
-        finally 
-        {
-            estadoServidor.removerListener(this);
-        }
-    }
-    
-    @Override
-    public void propertyChange(PropertyChangeEvent evento) 
-    {
-        final Gson gson = new Gson();
-        
-        final ConcurrentHashMap<Integer, Socket> usuariosConectados = estadoServidor.getClientesConectados();
-        
-        final List<Socket> receptores = new ArrayList<>();
-        
-        EventoServidor notificacion;
-
-        switch (evento.getPropertyName())
-        {
-        case EstadoServidor.PROP_USUARIOS_CONECTADOS:
-            // Un cambio en los usuarios conectados es enviado a todos los demas
-            // usuarios.
-            receptores.addAll(usuariosConectados.values());
-            
-            if (evento.getNewValue() != null) 
-            {
-                // Si el nuevo valor no es null, el usuario se conectó.
-                notificacion = new EventoServidor(
-                    TipoDeEvento.USUARIO_CONECTADO, 
-                    idUsuario.get(), 
-                    gson.toJson(evento.getNewValue())
-                );
-            }
-            else 
-            {
-                // Si el nuevo valor es null, el usuario se desconectó
-                notificacion = new EventoServidor(
-                    TipoDeEvento.USUARIO_DESCONECTADO, 
-                    idUsuario.get(), 
-                    gson.toJson(evento.getOldValue())
-                );
-            }
-            break;
-        case EstadoServidor.PROP_MENSAJES_RECIBIDOS:
-//            final int idClienteDestinatario = evento.get
-            final List<DTOMensaje> mensajes = estadoServidor.getMensajesUsuario(idUsuario.get());
-            final String jsonMensajesRecibidos = gson.toJson(mensajes);
-
-            notificacion = new EventoServidor(
-                TipoDeEvento.MENSAJE_ENVIADO, 
-                idUsuario.get(), 
-                jsonMensajesRecibidos
-            );
-            break;
-        case EstadoServidor.PROP_INVITACIONES_RECIBIDAS:
-//            if ()
-//            final Socket clienteUsrInvitado = usuariosConectados.get();
-//            
-//            receptores.add(clienteUsrInvitado);
-            
-            notificacion = new EventoServidor(
-                TipoDeEvento.INVITACION_ENVIADA,
-                idUsuario.get(),
-                ""
-            );
-            break;
-        default:
-            notificacion = new EventoServidor(
-                TipoDeEvento.ERROR_SERVIDOR, 
-                idUsuario.get(),
-                ""
-            );
-        }
-        
-        receptores.forEach(cliente -> {
-
-            try 
-            {
-                enviarRespuesta(cliente, notificacion);
-            } 
-            catch (IOException e) 
-            {
-                queueEventos.offer(new Evento(TipoDeEvento.ERROR_SERVIDOR, e.getMessage()));
-            }
-        });
     }
 
    /**
@@ -224,7 +128,7 @@ public class ManejadorClientes implements Runnable, PropertyChangeListener
             EventoServidor resultado = realizarAccion(accionCliente);
 
             // Enviar resultado al cliente.
-            enviarRespuesta(cliente, resultado);
+            enviarEventoASocket(cliente, resultado);
         }
         catch (IllegalArgumentException e) 
         {
@@ -241,7 +145,7 @@ public class ManejadorClientes implements Runnable, PropertyChangeListener
                 e.getMessage()
             );
 
-            enviarRespuesta(cliente, resultadoErr);
+            enviarEventoASocket(cliente, resultadoErr);
         }
         catch (SocketTimeoutException e) 
         {
@@ -267,7 +171,7 @@ public class ManejadorClientes implements Runnable, PropertyChangeListener
         return resultado;
     }
 
-    private void enviarRespuesta(Socket cliente, EventoServidor resultado) throws IOException 
+    public static void enviarEventoASocket(Socket cliente, EventoServidor resultado) throws IOException 
     {
         OutputStreamWriter writerSalida = new OutputStreamWriter(cliente.getOutputStream());
         PrintWriter salida = new PrintWriter(writerSalida);

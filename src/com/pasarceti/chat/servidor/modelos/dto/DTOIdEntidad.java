@@ -6,18 +6,19 @@
 package com.pasarceti.chat.servidor.modelos.dto;
 
 /**
- *
+ * Un objeto que transporta el ID de una entidad, usualmente para transformarlo
+ * en un objeto JSON.
  * 
  */
-public class DTOIdGrupo
+public class DTOIdEntidad
 {
-    private int idGrupo;
+    private int id;
 
-    public DTOIdGrupo(int idGrupo) {
-        this.idGrupo = idGrupo;
+    public DTOIdEntidad(int id) {
+        this.id = id;
     }
 
     public int getIdGrupo() {
-        return idGrupo;
+        return id;
     }
 }
