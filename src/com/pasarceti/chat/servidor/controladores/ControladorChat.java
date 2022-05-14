@@ -1,9 +1,10 @@
 package com.pasarceti.chat.servidor.controladores;
 
+import java.net.Socket;
+import java.util.ArrayList;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.pasarceti.chat.servidor.modelos.AccionCliente;
-import com.pasarceti.chat.servidor.modelos.Evento;
 import com.pasarceti.chat.servidor.modelos.EventoServidor;
 import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
 import com.pasarceti.chat.servidor.modelos.dto.DTOCambioPassword;
@@ -18,10 +19,6 @@ import com.pasarceti.chat.servidor.modelos.dto.DTONuevoMensaje;
 import com.pasarceti.chat.servidor.modelos.dto.DTOModInvitacion;
 import com.pasarceti.chat.servidor.modelos.dto.DTONuevoGrupo;
 import com.pasarceti.chat.servidor.modelos.dto.DTOUsuario;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Permite a los clientes realizar acciones con el chat, que producen un resultado.
@@ -490,6 +487,7 @@ public class ControladorChat
                 {
                     //TODO: Crear nuevo grupo.
                     //TODO: Enviar notificación de grupo creado.
+                    //TODO: Enviar invitacion a miembros iniciales.
                     
                     // Enviar confirmacion con datos del grupo creado al cliente.
                     DTOGrupo grupoCreado = new DTOGrupo(0, nuevoGrupo.getNombre(), nuevoGrupo.getIdsUsuariosMiembro());

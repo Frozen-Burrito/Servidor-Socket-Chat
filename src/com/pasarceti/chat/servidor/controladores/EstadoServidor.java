@@ -131,7 +131,6 @@ public class EstadoServidor
             idUsuario.set(-1);
 
             soporteCambios.fireIndexedPropertyChange(PROP_USUARIOS_CONECTADOS, viejoIdUsuario, clientePrevio, null);
-            soporteCambios.firePropertyChange(PROP_USUARIOS_CONECTADOS, viejoIdUsuario, (int) idUsuario.get());
         }
     }
     
@@ -241,10 +240,12 @@ public class EstadoServidor
         DTOInvitacion invPorRemover = null;
         int idxInvitacionPorRemover = -1;
         int i = 0;
+        
+        List<DTOInvitacion> invitacionesUsuario = invitaciones.get(idUsuario);
 
-        for (DTOInvitacion invitacion : invitaciones)
+        for (DTOInvitacion invitacion : invitacionesUsuario)
         {
-            if (invitacion.getIdGrupo() == idGrupo && invitacion.getIdUsuarioInvitado() == idUsuario) 
+            if (invitacion.getIdGrupo() == idGrupo) 
             {
                 invPorRemover = invitacion;
                 idxInvitacionPorRemover = i;
@@ -258,12 +259,12 @@ public class EstadoServidor
             return;
         } 
 
-        boolean removida = invitaciones.remove(invPorRemover);
+        boolean removida = invitacionesUsuario.remove(invPorRemover);
 
         if (removida) 
         {
             soporteCambios.fireIndexedPropertyChange(
-                PROP_TODAS_INVITACIONES, 
+                PROP_INVITACIONES_RECIBIDAS, 
                 idxInvitacionPorRemover, 
                 invPorRemover, 
                 null
@@ -293,17 +294,7 @@ public class EstadoServidor
     */
     public synchronized List<DTOInvitacion> getInvitacionesUsuario(int idUsuario)
     {
-        final List<DTOInvitacion> invitacionesUsuario = new ArrayList<>();
-
-        for (DTOInvitacion invitacion : invitaciones)
-        {
-            if (invitacion.getIdUsuarioInvitado() == idUsuario)
-            {
-                invitacionesUsuario.add(invitacion);
-            }
-        }
-
-        return invitacionesUsuario;
+        return invitaciones.get(idUsuario);
     }
 
     public List<DTOMensaje> getMensajesUsuario(int idUsuario)
@@ -323,7 +314,7 @@ public class EstadoServidor
         return usuarios;
     }
 
-    public CopyOnWriteArraySet<DTOInvitacion> getInvitaciones() {
+    public ConcurrentHashMap<Integer, List<DTOInvitacion>> getInvitaciones() {
         return invitaciones;
     }
 

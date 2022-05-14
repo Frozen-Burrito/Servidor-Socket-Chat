@@ -1,7 +1,6 @@
 package com.pasarceti.chat.servidor.controladores;
 
 import com.google.gson.Gson;
-import com.pasarceti.chat.servidor.modelos.AccionCliente;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -9,25 +8,25 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-
-import com.pasarceti.chat.servidor.modelos.Evento;
-import com.pasarceti.chat.servidor.modelos.EventoServidor;
-import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
-import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
-import com.pasarceti.chat.servidor.modelos.dto.DTONuevoMensaje;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+
+import com.pasarceti.chat.servidor.modelos.AccionCliente;
+import com.pasarceti.chat.servidor.modelos.Evento;
+import com.pasarceti.chat.servidor.modelos.EventoServidor;
+import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
+import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
 
 /**
  * Esta clase ejecuta la "tarea" de manejar la comunicacion con los sockets 
  * cliente.
  */
-public class HiloServidor implements Runnable, PropertyChangeListener 
+public class ManejadorClientes implements Runnable, PropertyChangeListener
 {
     // Los milisegundos que puede llegar a bloquear el hilo cuando
     // envía un evento al queueEventos.
@@ -53,7 +52,7 @@ public class HiloServidor implements Runnable, PropertyChangeListener
     // que envía los eventos producidos por el servidor a los consumidores de este queue.
     private final BlockingQueue<Evento> queueEventos;
 
-    public HiloServidor(Socket socket, EstadoServidor estadoServidor, BlockingQueue<Evento> queueEventos) 
+    public ManejadorClientes(Socket socket, EstadoServidor estadoServidor, BlockingQueue<Evento> queueEventos) 
     {
         this.socket = socket;
         this.estadoServidor = estadoServidor;
@@ -88,7 +87,8 @@ public class HiloServidor implements Runnable, PropertyChangeListener
                     // Si la linea del encabezado fue null, el socket fue desconectado.
                     // Hacer cleanup necesario.
                     System.out.println("El cliente se desconectó, cerrando el socket.");
-
+                    
+                    estadoServidor.removerListener(this);
                     estadoServidor.desconectarUsuario(idUsuario);
                     
                     socket.close();
@@ -114,53 +114,86 @@ public class HiloServidor implements Runnable, PropertyChangeListener
             estadoServidor.removerListener(this);
         }
     }
-
+    
     @Override
-    public void propertyChange(PropertyChangeEvent evt) {
-
+    public void propertyChange(PropertyChangeEvent evento) 
+    {
         final Gson gson = new Gson();
         
-        EventoServidor actualizacion;
+        final ConcurrentHashMap<Integer, Socket> usuariosConectados = estadoServidor.getClientesConectados();
+        
+        final List<Socket> receptores = new ArrayList<>();
+        
+        EventoServidor notificacion;
 
-        switch (evt.getPropertyName())
+        switch (evento.getPropertyName())
         {
         case EstadoServidor.PROP_USUARIOS_CONECTADOS:
-            final ConcurrentHashMap<Integer, Socket> usuariosConectados = estadoServidor.getClientesConectados();
-            final String usuariosConectadosStr = gson.toJson(usuariosConectados);
-
-            actualizacion = new EventoServidor(
-                TipoDeEvento.USUARIO_CONECTADO, 
-                idUsuario.get(), 
-                usuariosConectadosStr
-            );
+            // Un cambio en los usuarios conectados es enviado a todos los demas
+            // usuarios.
+            receptores.addAll(usuariosConectados.values());
+            
+            if (evento.getNewValue() != null) 
+            {
+                // Si el nuevo valor no es null, el usuario se conectó.
+                notificacion = new EventoServidor(
+                    TipoDeEvento.USUARIO_CONECTADO, 
+                    idUsuario.get(), 
+                    gson.toJson(evento.getNewValue())
+                );
+            }
+            else 
+            {
+                // Si el nuevo valor es null, el usuario se desconectó
+                notificacion = new EventoServidor(
+                    TipoDeEvento.USUARIO_DESCONECTADO, 
+                    idUsuario.get(), 
+                    gson.toJson(evento.getOldValue())
+                );
+            }
             break;
         case EstadoServidor.PROP_MENSAJES_RECIBIDOS:
+//            final int idClienteDestinatario = evento.get
             final List<DTOMensaje> mensajes = estadoServidor.getMensajesUsuario(idUsuario.get());
             final String jsonMensajesRecibidos = gson.toJson(mensajes);
 
-            actualizacion = new EventoServidor(
+            notificacion = new EventoServidor(
                 TipoDeEvento.MENSAJE_ENVIADO, 
                 idUsuario.get(), 
                 jsonMensajesRecibidos
             );
             break;
+        case EstadoServidor.PROP_INVITACIONES_RECIBIDAS:
+//            if ()
+//            final Socket clienteUsrInvitado = usuariosConectados.get();
+//            
+//            receptores.add(clienteUsrInvitado);
+            
+            notificacion = new EventoServidor(
+                TipoDeEvento.INVITACION_ENVIADA,
+                idUsuario.get(),
+                ""
+            );
+            break;
         default:
-            actualizacion = new EventoServidor(
+            notificacion = new EventoServidor(
                 TipoDeEvento.ERROR_SERVIDOR, 
                 idUsuario.get(),
                 ""
             );
         }
+        
+        receptores.forEach(cliente -> {
 
-        try 
-        {
-            enviarRespuesta(socket, actualizacion);
-        }      
-        catch (IOException e)  
-        {
-            Evento eventoErr = new Evento(TipoDeEvento.ERROR_SERVIDOR, e.getMessage());
-            queueEventos.offer(eventoErr);
-        }
+            try 
+            {
+                enviarRespuesta(cliente, notificacion);
+            } 
+            catch (IOException e) 
+            {
+                queueEventos.offer(new Evento(TipoDeEvento.ERROR_SERVIDOR, e.getMessage()));
+            }
+        });
     }
 
    /**
@@ -240,9 +273,11 @@ public class HiloServidor implements Runnable, PropertyChangeListener
         PrintWriter salida = new PrintWriter(writerSalida);
 
         System.out.println("Respuesta a enviar: " + resultado.comoRespuesta());
-
-        salida.println(resultado.comoRespuesta());
-
-        salida.flush();
+        
+        synchronized (cliente) 
+        {
+            salida.println(resultado.comoRespuesta());
+            salida.flush();
+        }
     }
 }

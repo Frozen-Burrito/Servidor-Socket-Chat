@@ -4,17 +4,19 @@ import com.pasarceti.chat.servidor.modelos.Evento;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
 * @brief El servidor que realiza toda la comunicación con los clientes del chat.
 */
-public class ServidorChat
+public class ServidorChat implements Runnable
 {
     // El puerto del sistema en que está disponible este servidor.
     private final int puerto; 
@@ -28,6 +30,9 @@ public class ServidorChat
     // Este Executor coordina y ejecuta todas las tareas de procesamiento de 
     // comunicación con sockets.
     private static final ExecutorService exec = Executors.newFixedThreadPool(NUM_HILOS);  
+    
+    // El servidor de sockets, usado para aceptar las conexiones.
+    private ServerSocket socketServidor;
 
     // Servicio de logging para el servidor.
     private static final Logger logger = Logger.getLogger("ServidorChat");
@@ -40,23 +45,32 @@ public class ServidorChat
     // que envía los eventos producidos por el servidor a los consumidores de este queue.
     private final BlockingQueue<Evento> queueEventos = new LinkedBlockingQueue<>(MAX_EVENTOS_EN_QUEUE);
 
-    public ServidorChat(int puerto) 
+    public ServidorChat(int puerto, Level nivelDeLogs) 
     {
         this.puerto = puerto;
+        logger.setLevel(nivelDeLogs);
+    }
+    
+    @Override
+    public void run() 
+    {
+        ejecutar();
     }
     
     /**
-    * @brief Ejecuta el servidor, haciendo que esté disponible y pueda recibir y 
-    * enviar datos.
-    */
-    public void ejecutar() 
+     * @brief Ejecuta el servidor, haciendo que esté disponible y pueda recibir y 
+     * enviar datos.
+     */
+    private void ejecutar() 
     {
         try 
         {
-            logger.info("Inciando servidor de chat...");
-
-            // Crear una nueva instancia de un ServerSocket.
-            ServerSocket socketServidor = new ServerSocket(puerto);
+            logger.info(String.format(
+                "Inciando servidor de chat en el puerto %s", 
+                String.valueOf(puerto)
+            ));
+            
+            socketServidor = new ServerSocket(puerto);
 
             logger.info("Servidor iniciado, esperando conexiones.");
 
@@ -70,31 +84,84 @@ public class ServidorChat
 //                cliente.setSoTimeout(10000);
 
                 logger.info("Cliente conectado");
+                
+                // Manejar la comunicación del cliente con una instancia de ManejadorClientes.
+                Runnable tareaPeticion = new ManejadorClientes(cliente, estado, queueEventos);
 
-                // Crear un nuevo runnable para ejecutar el manejo de la comunicacion 
-                // en otro hilo.
-//                Runnable tareaPeticion = new HiloServidor(cliente, queueEventos);
-                Runnable tareaPeticion = new HiloServidor(cliente, estado, queueEventos);
-
-                // Ejecutar la tarea de manejo de la peticion, a traves del Executor.
                 exec.execute(tareaPeticion);
             }
 
-            logger.info("El servidor ya dejo de esperar conexiones.");        }
+            logger.info("El servidor ya dejó de esperar conexiones.");        
+        }
+        catch (SocketException e) 
+        {
+            // Invocar socketServidor.close() produce esta excepcion, es importante
+            // asegurar que hilo donde está corriendo "ejecutar()" se detenga y termine. 
+            logger.log(Level.WARNING, "Excepción de socket: {0}", e.getMessage());
+        }
         catch (IOException e) 
         {
             logger.log(Level.SEVERE, "Error iniciando el servidor: {0}", e.getMessage());
             detener();
         }
     }
+    
+    public void detener()
+    {
+        if (socketServidor != null) 
+        {
+            try 
+            {
+                socketServidor.close();
+                
+            } catch (IOException e) 
+            {
+                logger.log(
+                    Level.SEVERE, 
+                    "Ocurri\u00f3 un error al detener el servidor: {0}", 
+                    e.getMessage()
+                );
+            }
+        }
+    }
 
     /**
-     * Detiene la ejecucion del servidor. 
+     * Intenta detener completamente al servidor "con gracia", evitando que acepte nuevas 
+     * conexiones pero esperando a que las conexiones existentes terminen de 
+     * ser procesadas.
+     * 
+     * @return <strong>true</strong> si el servidor fue detenido y todas las 
+     * conexiones restantes fueron procesadas.
     */
-    public void detener() 
+    public boolean terminar() 
     {
-        exec.shutdown();
-        logger.info("Servidor detenido");
+        try 
+        {            
+            exec.shutdown();
+            boolean execDetenidoSinTimeout = exec.awaitTermination(30, TimeUnit.SECONDS);
+            
+            if (socketServidor != null) 
+            {
+                socketServidor.close();
+            }
+            
+            logger.info(execDetenidoSinTimeout 
+                ? "Servidor terminado" 
+                : "Tiempo de espera excedido al intentar terminar el servidor"
+            );
+            
+            return exec.isTerminated();
+            
+        } catch (InterruptedException | IOException e) 
+        {
+            logger.log(
+                Level.SEVERE, 
+                "Ocurri\u00f3 un error al intentar terminar el servidor: {0}", 
+                e.getMessage()
+            );
+        }
+        
+        return false;
     }
 
     public BlockingQueue<Evento> getQueueEventos()
