@@ -1,14 +1,14 @@
 package com.pasarceti.chat.servidor.modelos.dto;
 
 /**
- *
+ * Representa una solicitud de recuperación de contraseña hecha por un cliente.
  * 
  */
 public class DTOCambioPassword 
 {
-    private int idUsuario;
+    private final int idUsuario;
 
-    private String nuevaPassword;
+    private final String nuevaPassword;
 
     public DTOCambioPassword(int idUsuario, String nuevaPassword) 
     {

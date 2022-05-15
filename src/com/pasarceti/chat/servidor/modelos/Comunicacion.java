@@ -1,13 +1,9 @@
 package com.pasarceti.chat.servidor.modelos;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
-
 /**
  * @brief Representa una comunicación (petición o respuesta) procesada por el 
  * servidor. Ayuda a asegurar que toda la comunicación producida por el servidor 
  * en los sockets tenga un formato correcto.
- * 
  */
 public class Comunicacion 
 { 
@@ -62,31 +58,38 @@ public class Comunicacion
         }
     }
 
-    public boolean fueExitosa() {
+    public boolean fueExitosa() 
+    {
         return fueExitosa;
     }
 
-    public void setFueExitosa(boolean fueExitosa) {
+    public void setFueExitosa(boolean fueExitosa) 
+    {
         this.fueExitosa = fueExitosa;
     }
 
-    public int getLongitudCuerpo() {
+    public int getLongitudCuerpo() 
+    {
         return longitudCuerpo;
     }
 
-    public void setLongitudCuerpo(int longitudCuerpo) {
+    public void setLongitudCuerpo(int longitudCuerpo) 
+    {
         this.longitudCuerpo = longitudCuerpo;
     }
 
-    public int getIdUsuarioCliente() {
+    public int getIdUsuarioCliente() 
+    {
         return idUsuarioCliente;
     }
 
-    public void setIdUsuarioCliente(int idUsuarioCliente) {
+    public void setIdUsuarioCliente(int idUsuarioCliente) 
+    {
         this.idUsuarioCliente = idUsuarioCliente;
     }
 
-    public String getCuerpoJSON() {
+    public String getCuerpoJSON() 
+    {
         return cuerpoJSON;
     }
 

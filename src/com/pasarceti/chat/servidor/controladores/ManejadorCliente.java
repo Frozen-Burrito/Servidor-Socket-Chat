@@ -14,12 +14,13 @@ import com.pasarceti.chat.servidor.modelos.AccionCliente;
 import com.pasarceti.chat.servidor.modelos.Evento;
 import com.pasarceti.chat.servidor.modelos.EventoServidor;
 import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
+import java.util.Arrays;
 
 /**
  * Esta clase ejecuta la "tarea" de manejar la comunicacion con los sockets 
  * cliente.
  */
-public class ManejadorClientes implements Runnable
+public class ManejadorCliente implements Runnable
 {
     // Los milisegundos que puede llegar a bloquear el hilo cuando
     // envía un evento al queueEventos.
@@ -45,7 +46,7 @@ public class ManejadorClientes implements Runnable
     // que envía los eventos producidos por el servidor a los consumidores de este queue.
     private final BlockingQueue<Evento> queueEventos;
 
-    public ManejadorClientes(Socket socket, EstadoServidor estadoServidor, BlockingQueue<Evento> queueEventos) 
+    public ManejadorCliente(Socket socket, EstadoServidor estadoServidor, BlockingQueue<Evento> queueEventos) 
     {
         this.socket = socket;
         this.estadoServidor = estadoServidor;
@@ -153,13 +154,16 @@ public class ManejadorClientes implements Runnable
         }
         catch (IOException e) 
         {
-            System.out.println("Error de IO en los streams del socket: " + e.getMessage() + e.getStackTrace());
+            System.out.println(String.format(
+                "Error de IO en los streams del socket: %s\n%s", 
+                e.getMessage(),
+                Arrays.toString(e.getStackTrace())
+            ));
         }
     }
 
     private EventoServidor realizarAccion(AccionCliente accionCliente) throws InterruptedException 
     {
-        //TODO: Implementar todas las funciones del servidor.
         ControladorChat controladorChat = new ControladorChat(estadoServidor, idUsuario);
 
         EventoServidor resultado = controladorChat.ejecutarAccion(socket, accionCliente);

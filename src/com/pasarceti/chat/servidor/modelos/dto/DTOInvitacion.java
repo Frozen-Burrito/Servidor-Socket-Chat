@@ -52,11 +52,13 @@ public class DTOInvitacion
         return idGrupo == null;
     }
 
-    public int getIdUsuarioQueInvita() {
+    public int getIdUsuarioQueInvita() 
+    {
         return idUsuarioQueInvita;
     }
 
-    public int getIdUsuarioInvitado() {
+    public int getIdUsuarioInvitado() 
+    {
         return idUsuarioInvitado;
     }
     

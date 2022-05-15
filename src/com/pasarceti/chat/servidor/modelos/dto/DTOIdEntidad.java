@@ -18,7 +18,7 @@ public class DTOIdEntidad
         this.id = id;
     }
 
-    public int getIdGrupo() {
+    public int getId() {
         return id;
     }
 }

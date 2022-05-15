@@ -7,7 +7,7 @@ import java.util.List;
  *
  * 
  */
-public class DTOGrupo extends DTODestinatario 
+public class DTOGrupo 
 {
     private final int idGrupo;
 

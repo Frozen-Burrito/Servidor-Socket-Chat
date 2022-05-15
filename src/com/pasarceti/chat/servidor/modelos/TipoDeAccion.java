@@ -3,7 +3,6 @@ package com.pasarceti.chat.servidor.modelos;
 /**
  * Identifica cada una de las acciones que puede realizar un cliente a través
  * del servidor.
- * 
  */
 public enum TipoDeAccion {
     REGISTRAR_USUARIO,

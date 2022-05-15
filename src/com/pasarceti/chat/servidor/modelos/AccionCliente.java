@@ -3,7 +3,6 @@ package com.pasarceti.chat.servidor.modelos;
 /**
  * Interpreta un String con una linea de encabezado con el protocolo del chat y
  * facilita procesar la accion del cliente.
- * 
  */
 public class AccionCliente extends Comunicacion 
 {
@@ -36,17 +35,6 @@ public class AccionCliente extends Comunicacion
         int idUsuario = Integer.parseInt(partesLineaInicial[3]);
 
         return new AccionCliente(ordTipoDeEvento, longitud, idUsuario, "");
-
-//        try 
-//        {
-//        } 
-//        catch (NumberFormatException e) 
-//        {
-//            mensajeErr = "Error: la peticion no tiene un formato correcto.";
-//            
-//        } catch (IllegalArgumentException ex) {
-//            mensajeErr = "Error de formato en comunicacion: " +  ex.getMessage();
-//        }
     }
 
     @Override
@@ -64,16 +52,19 @@ public class AccionCliente extends Comunicacion
         return String.format("%s\n%s", lineaEncabezado, cuerpoJSON);
     }
     
-    public static boolean esAccionDeAutenticacion(TipoDeAccion tipoDeAccion) {
+    public static boolean esAccionDeAutenticacion(TipoDeAccion tipoDeAccion) 
+    {
         return tipoDeAccion == TipoDeAccion.INICIAR_SESION || 
                tipoDeAccion == TipoDeAccion.REGISTRAR_USUARIO;
     }
     
-    public boolean esAccionDeAutenticacion() {
+    public boolean esAccionDeAutenticacion() 
+    {
         return esAccionDeAutenticacion(this.tipoDeAccion);
     }
 
-    public TipoDeAccion getTipoDeAccion() {
+    public TipoDeAccion getTipoDeAccion() 
+    {
         return tipoDeAccion;
     }
 }

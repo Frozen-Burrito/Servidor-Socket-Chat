@@ -16,7 +16,6 @@ import com.pasarceti.chat.servidor.modelos.dto.DTOInvAceptada;
 import com.pasarceti.chat.servidor.modelos.dto.DTOInvitacion;
 import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
 import com.pasarceti.chat.servidor.modelos.dto.DTONuevoMensaje;
-import com.pasarceti.chat.servidor.modelos.dto.DTOModInvitacion;
 import com.pasarceti.chat.servidor.modelos.dto.DTONuevoGrupo;
 import com.pasarceti.chat.servidor.modelos.dto.DTOUsuario;
 
@@ -24,9 +23,7 @@ import com.pasarceti.chat.servidor.modelos.dto.DTOUsuario;
  * Permite a los clientes realizar acciones con el chat, que producen un resultado.
  * 
  * Algunas acciones, como enviar un mensaje, producen también un cambio en el
- * estado del servidor, que es propagado a los demás clientes que deban ser
- * "notificados" de ese cambio.
- * 
+ * estado del servidor. Estos cambios son propagados por el estado del servidor.
  */
 public class ControladorChat 
 {
@@ -364,44 +361,56 @@ public class ControladorChat
         
         try 
         {
-            DTOModInvitacion idInvitacion = gson.fromJson(json, DTOModInvitacion.class);
+            DTOIdEntidad idInvitacion = gson.fromJson(json, DTOIdEntidad.class);
 
             //TODO: Intentar obtener la invitación con idInvitacion desde la BD.
-            DTOInvitacion invitacion = new DTOInvitacion(0, idUsuario.get(), null);
+            DTOInvitacion invitacion = new DTOInvitacion(idInvitacion.getId(), idUsuario.get(), null);
 
             //TODO: Intentar obtener el usuario que invitó desde la BD.
-            DTOUsuario usuarioQueInvito = new DTOUsuario(2, "Juan");
+            DTOUsuario usuarioQueAcepto = new DTOUsuario(2, "Juan");
+            
+            boolean existen = invitacion != null && usuarioQueAcepto != null;
 
-            if (invitacion != null && usuarioQueInvito != null) 
+            if (existen) 
             {
-                // Si la invitación existe en BD, aceptarla.
-                
-                String jsonResultado = "";
-                
-                if (invitacion.esDeAmistad())
+                boolean mismoUsuarioQueAcepta = usuarioQueAcepto.getIdUsuario() == invitacion.getIdUsuarioInvitado();
+
+                if (mismoUsuarioQueAcepta)
                 {
-                    //TODO: Crear en BD amistad entre usuario actual y el usuario que 
-                    // envio la invitacion.
+                    // Si la invitación y el usuario existen en BD, aceptarla.
+                    if (invitacion.esDeAmistad())
+                    {
+                        //TODO: Crear en BD amistad entre usuario actual y el usuario que 
+                        // envio la invitacion.
+                    }
+                    else 
+                    {
+                        //TODO: Agregar en BD al usuario como miembro del grupo.
+                    }
+
+                    DTOInvAceptada invitacionAceptada = new DTOInvAceptada(
+                        invitacion,
+                        usuarioQueAcepto
+                    );
+
+                    String jsonResultado = gson.toJson(invitacionAceptada);
+
+                    // Notificar al otro usuario sobre su nueva amistad, o al grupo
+                    // sobre su nuevo miembro.
+                    estadoServidor.invitacionAceptada(invitacionAceptada);
+
+                    //TODO: Eliminar invitacion aceptada de la BD. 
+
+                    resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                    resultado.setCuerpoJSON(jsonResultado);
                 }
                 else 
                 {
-                    //TODO: Agregar en BD al usuario como miembro del grupo.
+                    // El usuario invitado y el que está intentando aceptar la 
+                    // invitación no son el mismo.
+                    resultado.setTipoDeEvento(TipoDeEvento.ERROR_AUTENTICACION);
+                    resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
                 }
-                
-                DTOInvAceptada invitacionAceptada = new DTOInvAceptada(
-                    invitacion,
-                    usuarioQueInvito
-                );
-
-                jsonResultado = gson.toJson(invitacionAceptada);
-                
-                // Notificar al otro usuario sobre su nueva amistad.
-                estadoServidor.invitacionAceptada(invitacionAceptada);
-                
-                //TODO: Eliminar invitacion aceptada de la BD. 
-                
-                resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                resultado.setCuerpoJSON(jsonResultado);
 
             } else {
                 // La invitación no existe, no puede ser aceptada.
@@ -430,10 +439,10 @@ public class ControladorChat
         
         try 
         {
-            DTOModInvitacion idInvitacion = gson.fromJson(json, DTOModInvitacion.class);
+            DTOIdEntidad idInvitacion = gson.fromJson(json, DTOIdEntidad.class);
 
             //TODO: Intentar obtener la invitación con idInvitacion desde la BD.
-            DTOInvitacion invitacionRechazada = new DTOInvitacion(0, idUsuario.get(), null);
+            DTOInvitacion invitacionRechazada = new DTOInvitacion(idInvitacion.getId(), idUsuario.get(), null);
 
             if (invitacionRechazada != null) 
             {                
@@ -537,7 +546,7 @@ public class ControladorChat
             DTOIdEntidad idGrupoAbandonado = gson.fromJson(json, DTOIdEntidad.class);
 
             //TODO: Revisar si existe el grupo y si el usuario es miembro.
-            DTOGrupo grupo = new DTOGrupo(idGrupoAbandonado.getIdGrupo(), "Grupo de prueba", new ArrayList<>());
+            DTOGrupo grupo = new DTOGrupo(idGrupoAbandonado.getId(), "Grupo de prueba", new ArrayList<>());
             boolean usuarioEsMiembro = true;
 
             if (grupo != null && usuarioEsMiembro) 

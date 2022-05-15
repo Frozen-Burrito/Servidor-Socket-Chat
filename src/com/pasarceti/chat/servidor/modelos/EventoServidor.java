@@ -1,24 +1,26 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
 package com.pasarceti.chat.servidor.modelos;
+
+import java.net.Socket;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  * Un evento que involucró la modificación de los datos del servidor.
  * Puede ser un resultado de una acción o  puede ser producido como efecto
  * secundario de otra acción.
- * 
  */
 public class EventoServidor extends Comunicacion {
 
     private TipoDeEvento tipoDeEvento;
     
+    private final transient Set<Map.Entry<Integer, Socket>> receptores = new HashSet<>();
+    
     public EventoServidor(TipoDeEvento tipoDeEvento, int idUsuarioCliente, String cuerpoJSON) 
     {
         // Una solicitud de acción es exitosa por defecto.
-        super(esError(tipoDeEvento), cuerpoJSON.length(), idUsuarioCliente, cuerpoJSON);
+        super(!esError(tipoDeEvento), cuerpoJSON.length(), idUsuarioCliente, cuerpoJSON);
 
         // Especificar el tipo de acción del cliente.
         this.tipoDeEvento = tipoDeEvento;
@@ -65,5 +67,28 @@ public class EventoServidor extends Comunicacion {
     public void setTipoDeEvento(TipoDeEvento tipoDeEvento) 
     {
         this.tipoDeEvento = tipoDeEvento;
+    }
+    
+    public Set<Entry<Integer, Socket>> getReceptores()
+    {
+        return receptores;
+    }
+        
+    public boolean agregarReceptor(Entry<Integer, Socket> receptor)
+    {
+        boolean receptorNoExistia = receptores.add(receptor);
+        return receptorNoExistia;
+    }
+    
+    public boolean agregarReceptores(Set<Entry<Integer, Socket>> receptores)
+    {
+        boolean receptoresCambio = receptores.addAll(receptores);
+        return receptoresCambio;
+    }
+    
+    public boolean removerReceptor(Integer idReceptor)
+    {
+        boolean elementosRemovidos = receptores.removeIf(r -> r.getKey().equals(idReceptor));
+        return elementosRemovidos;
     }
 }

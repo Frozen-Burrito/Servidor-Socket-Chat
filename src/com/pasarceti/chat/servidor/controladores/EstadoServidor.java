@@ -1,13 +1,5 @@
 package com.pasarceti.chat.servidor.controladores;
 
-import com.pasarceti.chat.servidor.modelos.TipoDestinatario;
-import com.pasarceti.chat.servidor.modelos.dto.DTOAbandonarGrupo;
-import com.pasarceti.chat.servidor.modelos.dto.DTODestinatario;
-import com.pasarceti.chat.servidor.modelos.dto.DTOGrupo;
-import com.pasarceti.chat.servidor.modelos.dto.DTOInvAceptada;
-import com.pasarceti.chat.servidor.modelos.dto.DTOInvitacion;
-import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
-import com.pasarceti.chat.servidor.modelos.dto.DTOUsuario;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.net.Socket;
@@ -15,6 +7,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import com.pasarceti.chat.servidor.modelos.TipoDestinatario;
+import com.pasarceti.chat.servidor.modelos.dto.DTOAbandonarGrupo;
+import com.pasarceti.chat.servidor.modelos.dto.DTOGrupo;
+import com.pasarceti.chat.servidor.modelos.dto.DTOInvAceptada;
+import com.pasarceti.chat.servidor.modelos.dto.DTOInvitacion;
+import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
+import com.pasarceti.chat.servidor.modelos.dto.DTOUsuario;
 
 /**
  * @brief Almacena todo el estado de los datos del servidor y notifica a los 
@@ -338,7 +337,7 @@ public class EstadoServidor
     */
     public synchronized void getContactosUsuario(int idUsuario) 
     {
-        final List<DTODestinatario> contactos = new ArrayList<>();
+//        final List<DTODestinatario> contactos = new ArrayList<>();
 
 //        for (DTOUsuario)
     }
@@ -366,6 +365,11 @@ public class EstadoServidor
         }
         
         return null;
+    }
+    
+    public Socket getClientePorId(Integer idCliente)
+    {
+        return clientesConectados.get(idCliente);
     }
 
     public List<DTOMensaje> getMensajesUsuario(int idUsuario)

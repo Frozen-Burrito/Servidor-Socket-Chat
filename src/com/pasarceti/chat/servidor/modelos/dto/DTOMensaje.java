@@ -1,7 +1,7 @@
 package com.pasarceti.chat.servidor.modelos.dto;
 
-import com.pasarceti.chat.servidor.modelos.TipoDestinatario;
 import java.time.LocalDateTime;
+import com.pasarceti.chat.servidor.modelos.TipoDestinatario;
 
 /**
  *
