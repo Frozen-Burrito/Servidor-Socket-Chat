@@ -88,7 +88,7 @@ public class ControladorChat
             case INICIAR_SESION: return iniciarSesion(cliente, datosJson);
             case CERRAR_SESION: return cerrarSesion();
             case RECUPERAR_CONTRASEÑA: return recuperarPassword(datosJson);
-            case OBTENER_MENSAJES return obtenerMensajes(datosJson);
+            case OBTENER_MENSAJES: return obtenerMensajes(datosJson);
             case ENVIAR_MENSAJE: return enviarMensaje(datosJson);
             case CREAR_GRUPO: return crearGrupo(datosJson);
             case ENVIAR_INVITACION: return enviarInvitacion(datosJson);
