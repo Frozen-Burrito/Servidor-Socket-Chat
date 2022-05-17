@@ -3,7 +3,6 @@ package com.pasarceti.chat.servidor.controladores;
 import com.pasarceti.chat.servidor.modelos.Cliente;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -113,7 +112,7 @@ public class EstadoServidor
      * 
      * @param cliente El cliente a agregar.
     */
-    public synchronized void agregarCliente(Cliente cliente)
+    public void agregarCliente(Cliente cliente)
     {
         clientesConectados.putIfAbsent(cliente.getId(), cliente);
         
@@ -133,7 +132,7 @@ public class EstadoServidor
      * 
      * @param idCliente El ID del cliente a remover.
     */
-    public synchronized void removerCliente(Integer idCliente)
+    public void removerCliente(Integer idCliente)
     {
         Cliente clientePrevio = clientesConectados.remove(idCliente);
         
@@ -149,7 +148,7 @@ public class EstadoServidor
     * 
      * @param idUsuario El ID del usuario que se va a desconectar.
     */
-    public synchronized void desconectarUsuario(ThreadLocal<Integer> idUsuario) 
+    public void desconectarUsuario(ThreadLocal<Integer> idUsuario) 
     {
         int viejoIdUsuario = idUsuario.get();
         Cliente clientePrevio = clientesConectados.remove(viejoIdUsuario);
@@ -171,7 +170,7 @@ public class EstadoServidor
      * 
      * @param mensajeEnviado El mensaje a enviar.
     */
-    public synchronized void enviarMensaje(DTOMensaje mensajeEnviado)
+    public void enviarMensaje(DTOMensaje mensajeEnviado)
     {
         List<Integer> idsDestinatarios = new ArrayList<>();
         
@@ -201,7 +200,7 @@ public class EstadoServidor
      * @param idDestinatario El ID del usuario que va a recibir este mensaje.
      * @param mensajeEnviado El mensaje a enviar.
     */
-    public synchronized void enviarMensajeAUsuario(int idDestinatario, DTOMensaje mensajeEnviado)
+    public void enviarMensajeAUsuario(int idDestinatario, DTOMensaje mensajeEnviado)
     {
         // Agregar el mensaje enviado a la lista de mensajes recibidos del
         // destinatario del mensaje. Se agrega en la primera posición, de esta 
@@ -228,7 +227,7 @@ public class EstadoServidor
      * 
      * @param invitacion La invitación enviada al otro usuario.
      */
-    public synchronized void enviarInvitacion(DTOInvitacion invitacion)
+    public void enviarInvitacion(DTOInvitacion invitacion)
     {
         List<DTOInvitacion> invitacionesPendientes = invitaciones.get(invitacion.getIdUsuarioInvitado());
         
@@ -249,7 +248,7 @@ public class EstadoServidor
         }
     }
     
-    public synchronized void invitacionAceptada(DTOInvAceptada invitacionAceptada)
+    public void invitacionAceptada(DTOInvAceptada invitacionAceptada)
     {
         soporteCambios.firePropertyChange(
             PROP_INVITACIONES_RECIBIDAS,
@@ -258,7 +257,7 @@ public class EstadoServidor
         );
     }
     
-    public synchronized void invitacionRechazada(DTOInvitacion invitacion)
+    public void invitacionRechazada(DTOInvitacion invitacion)
     {
         soporteCambios.firePropertyChange(
             PROP_INVITACIONES_RECIBIDAS,
@@ -267,7 +266,7 @@ public class EstadoServidor
         );
     }
     
-    public synchronized void usuarioAbandono(DTOAbandonarGrupo grupoAbandonado)
+    public void usuarioAbandono(DTOAbandonarGrupo grupoAbandonado)
     {
         soporteCambios.firePropertyChange(
             PROP_GRUPOS_EXISTENTES,
@@ -276,7 +275,7 @@ public class EstadoServidor
         );
     }
     
-    public synchronized void grupoEliminado(int idGrupo)
+    public void grupoEliminado(int idGrupo)
     {
         soporteCambios.firePropertyChange(
             PROP_GRUPOS_EXISTENTES,
@@ -292,7 +291,7 @@ public class EstadoServidor
      * @param idGrupo El ID del grupo al que fue invitado el usuario.
      * @param idUsuario El ID del usuario a quien fue dirigida la invitación a remover.
     */
-    public synchronized void removerInvitacion(int idGrupo, int idUsuario)
+    public void removerInvitacion(int idGrupo, int idUsuario)
     {
         DTOInvitacion invPorRemover = null;
         int idxInvitacionPorRemover = -1;
@@ -335,7 +334,7 @@ public class EstadoServidor
      * 
      * @param idUsuario El ID del usuario a remover.
     */
-    public synchronized void getContactosUsuario(int idUsuario) 
+    public void getContactosUsuario(int idUsuario) 
     {
 //        final List<DTODestinatario> contactos = new ArrayList<>();
 
@@ -349,7 +348,7 @@ public class EstadoServidor
      * @param idUsuario El ID del usuario a remover.
      * @return La coleccion con todas las invitaciones pendientes.
     */
-    public synchronized List<DTOInvitacion> getInvitacionesUsuario(int idUsuario)
+    public List<DTOInvitacion> getInvitacionesUsuario(int idUsuario)
     {
         return invitaciones.get(idUsuario);
     }
