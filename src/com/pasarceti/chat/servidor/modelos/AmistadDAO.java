@@ -26,6 +26,7 @@ public class AmistadDAO extends ControladorBD {
             ps.setInt(1, amistad.getId_usuario());
             ps.setInt(2, amistad.getId_otro_usuario());
             ps.executeUpdate();
+            ps.close();
         } catch (SQLException ex) {
             Logger.getLogger(AmistadDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -45,6 +46,7 @@ public class AmistadDAO extends ControladorBD {
                 amistad.setId_usuario(res.getInt("id_usuario"));
                 amistad.setId_otro_usuario(res.getInt("id_otro_usuario"));
             }
+            ps.close();
         } catch (SQLException ex) {
             Logger.getLogger(AmistadDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -52,13 +54,14 @@ public class AmistadDAO extends ControladorBD {
     }
 
     // Buscar una lista de amistades de un dado usuario
-    public List<Amistad> busqueda_porUsuario(Usuario usuario) {
+    public List<Amistad> busqueda_porUsuario(int id) {
         PreparedStatement ps;
         ResultSet res;
         List<Amistad> amistades = new ArrayList<>();
         try {
             ps = getC().prepareStatement("SELECT * from amistad WHERE id_usuario = ?");
-            ps.setInt(1, usuario.getId());
+//            ps.setInt(1, usuario.getId());
+            ps.setInt(1, id);
             res = ps.executeQuery();
             while (res.next()) {
                 Amistad amistad = new Amistad();
@@ -66,6 +69,7 @@ public class AmistadDAO extends ControladorBD {
                 amistad.setId_otro_usuario(res.getInt("id_otro_usuario"));
                 amistades.add(amistad);
             }
+            ps.close();
         } catch (SQLException ex) {
             Logger.getLogger(AmistadDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -80,6 +84,7 @@ public class AmistadDAO extends ControladorBD {
             ps.setInt(1, amistad.getId_usuario());
             ps.setInt(2, amistad.getId_otro_usuario());
             ps.executeUpdate();
+            ps.close();
         } catch (Exception ex) {
             Logger.getLogger(AmistadDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
