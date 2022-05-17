@@ -1,23 +1,15 @@
-
 package com.pasarceti.chat.servidor.modelos;
 
 import java.util.List;
 import org.apache.commons.codec.digest.DigestUtils;
 
 public class Usuario {
-    
+
     private int id;
     private String nombre_usuario, password;
     private List<Amistad> amigos;
-
-    public List<Amistad> getAmigos() {
-        return amigos;
-    }
-
-    //MARIANA QUE PEDO CON LA LISTA DE AMIGOS, SE QUEDA O SE VA?
-    public void setAmigos(List<Amistad> amigos) {
-        this.amigos = amigos;
-    }
+    private List<UsuariosGrupo> grupos;
+    private Boolean conectado;
 
     public Usuario() {
     }
@@ -56,4 +48,33 @@ public class Usuario {
     public void setPassword(String password) {
         this.password = password;
     }
+
+    public List<Amistad> getAmigos() {
+        AmistadDAO amistad = new AmistadDAO();
+        amigos = amistad.busqueda_porUsuario(id);
+        return amigos;
+    }
+
+    public void setAmigos(List<Amistad> amigos) {
+        this.amigos = amigos;
+    }
+
+    public List<UsuariosGrupo> getGrupos() {
+        UsuariosGrupoDAO grupo = new UsuariosGrupoDAO();
+        grupos = grupo.busqueda_porUsuario(id);
+        return grupos;
+    }
+
+    public void setGrupos(List<UsuariosGrupo> grupos) {
+        this.grupos = grupos;
+    }
+
+    public Boolean getConectado() {
+        return conectado;
+    }
+
+    public void setConectado(Boolean conectado) {
+        this.conectado = conectado;
+    }
+
 }
