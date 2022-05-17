@@ -1,8 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
 package com.pasarceti.chat.servidor.modelos.dto;
 
 /**
@@ -12,13 +7,15 @@ package com.pasarceti.chat.servidor.modelos.dto;
  */
 public class DTOIdEntidad
 {
-    private int id;
+    private final int id;
 
-    public DTOIdEntidad(int id) {
+    public DTOIdEntidad(int id) 
+    {
         this.id = id;
     }
 
-    public int getId() {
+    public int getId() 
+    {
         return id;
     }
 }

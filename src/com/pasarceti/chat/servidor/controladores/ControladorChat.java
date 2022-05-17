@@ -5,15 +5,20 @@ import java.util.ArrayList;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.pasarceti.chat.servidor.modelos.AccionCliente;
+import com.pasarceti.chat.servidor.modelos.Cliente;
 import com.pasarceti.chat.servidor.modelos.EventoServidor;
 import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
+import com.pasarceti.chat.servidor.modelos.TipoDestinatario;
 import com.pasarceti.chat.servidor.modelos.dto.DTOAbandonarGrupo;
 import com.pasarceti.chat.servidor.modelos.dto.DTOCambioPassword;
+import com.pasarceti.chat.servidor.modelos.dto.DTOContacto;
+import com.pasarceti.chat.servidor.modelos.dto.DTOContactos;
 import com.pasarceti.chat.servidor.modelos.dto.DTOCredUsuario;
 import com.pasarceti.chat.servidor.modelos.dto.DTOGrupo;
 import com.pasarceti.chat.servidor.modelos.dto.DTOIdEntidad;
 import com.pasarceti.chat.servidor.modelos.dto.DTOInvAceptada;
 import com.pasarceti.chat.servidor.modelos.dto.DTOInvitacion;
+import com.pasarceti.chat.servidor.modelos.dto.DTOListaMensajes;
 import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
 import com.pasarceti.chat.servidor.modelos.dto.DTONuevoMensaje;
 import com.pasarceti.chat.servidor.modelos.dto.DTONuevoGrupo;
@@ -83,6 +88,7 @@ public class ControladorChat
             case INICIAR_SESION: return iniciarSesion(cliente, datosJson);
             case CERRAR_SESION: return cerrarSesion();
             case RECUPERAR_CONTRASEÑA: return recuperarPassword(datosJson);
+            case OBTENER_MENSAJES return obtenerMensajes(datosJson);
             case ENVIAR_MENSAJE: return enviarMensaje(datosJson);
             case CREAR_GRUPO: return crearGrupo(datosJson);
             case ENVIAR_INVITACION: return enviarInvitacion(datosJson);
@@ -142,6 +148,13 @@ public class ControladorChat
 
     public EventoServidor iniciarSesion(final Socket cliente, String json) 
     {
+        // La respuesta que será enviada al cliente.
+        EventoServidor resultado = new EventoServidor(
+            TipoDeEvento.ERROR_SERVIDOR, 
+            idUsuario.get(), 
+            ""
+        );
+        
         try 
         {
             DTOCredUsuario credenciales = gson.fromJson(json, DTOCredUsuario.class);
@@ -160,39 +173,45 @@ public class ControladorChat
                 if (passCoinciden)
                 {
                     int idUsuarioDeBD = 0;
+
+                    estadoServidor.agregarCliente(new Cliente(idUsuarioDeBD, cliente));
+                    
                     //TODO: Obtener datos del usuario (Amigos, grupos, invitaciones).
-
-                    estadoServidor.agregarCliente(idUsuarioDeBD, cliente);
-
-                    // Usuario accedio con exito.
-                    return new EventoServidor(
-                        TipoDeEvento.USUARIO_CONECTADO,
-                        idUsuarioDeBD,
-                        "El Usuario " + credenciales.getNombreUsuario() + " ha iniciado sesión"
+                    DTOContactos listaDeContactos;
+                    listaDeContactos = new DTOContactos(
+                            new ArrayList<>(),
+                            new ArrayList<>(),
+                            new ArrayList<>(),
+                            new ArrayList<>()
                     );
+
+                    String contactosJson = gson.toJson(listaDeContactos);
+                    
+                    // Usuario accedio con exito.                    
+                    resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                    resultado.setCuerpoJSON(contactosJson);
+                    
                 } else {
                     // La contraseña es incorrecta, retornar error.
-                    return new EventoServidor(
-                        TipoDeEvento.ERROR_CLIENTE,
-                        -1,
-                        ERR_USR_PASS_INCORRECTO
-                    );
+                    resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                    resultado.setCuerpoJSON(ERR_USR_PASS_INCORRECTO);
                 }
 
             } else {
                 // El usuario ya existe, retornar error.
-                return new EventoServidor(
-                    TipoDeEvento.ERROR_CLIENTE, 
-                    -1,
-                    ERR_USR_NO_EXISTE + " " + credenciales.getNombreUsuario()
-                );
+                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.setCuerpoJSON(ERR_USR_NO_EXISTE + " " + credenciales.getNombreUsuario());
             }
 
         } 
         catch (JsonSyntaxException e)
         {
-            return new EventoServidor(TipoDeEvento.ERROR_CLIENTE, -1, ERR_FORMATO_JSON);
+            // El cuerpo de la acción del cliente no está bien formado.
+            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.setCuerpoJSON(ERR_FORMATO_JSON);
         }
+        
+        return resultado;
     }
 
     public EventoServidor cerrarSesion() 
@@ -245,6 +264,61 @@ public class ControladorChat
         {
             return new EventoServidor(TipoDeEvento.ERROR_CLIENTE, idUsuario.get(), ERR_FORMATO_JSON);
         }
+    }
+    
+    public EventoServidor obtenerMensajes(String json) 
+    {
+        // La respuesta que será enviada al cliente.
+        EventoServidor resultado = new EventoServidor(
+            TipoDeEvento.ERROR_SERVIDOR, 
+            idUsuario.get(), 
+            ""
+        );
+        
+        try 
+        {
+            DTOContacto contactoDeMensajes = gson.fromJson(json, DTOContacto.class);
+            
+            boolean contactoExiste = true;
+            
+            if (contactoDeMensajes.getTipoDestinatario() == TipoDestinatario.GRUPO)
+            {
+                final DTOGrupo grupoContacto = new DTOGrupo(0, "Grupo de prueba", new ArrayList<>());
+                
+                contactoExiste = grupoContacto != null;
+            }
+            else 
+            {
+                final DTOUsuario usuarioContacto = new DTOUsuario(0, "Usuario");
+                
+                contactoExiste = usuarioContacto != null;
+            }
+
+            if (contactoExiste) 
+            {
+                //TODO: Obtener mensajes del contacto.
+                DTOListaMensajes mensajes = new DTOListaMensajes(new ArrayList<>());
+
+                // Enviar lista de mensajes.
+                String jsonResultado = gson.toJson(mensajes);
+
+                resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                resultado.setCuerpoJSON(jsonResultado);
+
+            } else {
+                // El contacto no existe.
+                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
+            }
+        } 
+        catch (JsonSyntaxException e)
+        {
+            // El cuerpo de la acción del cliente no está bien formado.
+            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.setCuerpoJSON(ERR_FORMATO_JSON);
+        }
+        
+        return resultado;
     }
 
     public EventoServidor enviarMensaje(String json) 

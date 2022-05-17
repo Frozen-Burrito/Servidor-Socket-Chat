@@ -27,7 +27,7 @@ public class Comunicacion
         this.cuerpoJSON = cuerpoJSON;
     }
 
-    public boolean tieneJson() 
+    public boolean tieneCuerpo() 
     {
         return this.longitudCuerpo > 0;
     }

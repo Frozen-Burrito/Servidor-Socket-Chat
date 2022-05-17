@@ -2,7 +2,6 @@ package com.pasarceti.chat.servidor.modelos;
 
 import java.net.Socket;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -15,7 +14,7 @@ public class EventoServidor extends Comunicacion {
 
     private TipoDeEvento tipoDeEvento;
     
-    private final transient Set<Map.Entry<Integer, Socket>> receptores = new HashSet<>();
+    private final transient Set<Cliente> receptores = new HashSet<>();
     
     public EventoServidor(TipoDeEvento tipoDeEvento, int idUsuarioCliente, String cuerpoJSON) 
     {
@@ -69,18 +68,18 @@ public class EventoServidor extends Comunicacion {
         this.tipoDeEvento = tipoDeEvento;
     }
     
-    public Set<Entry<Integer, Socket>> getReceptores()
+    public Set<Cliente> getReceptores()
     {
         return receptores;
     }
         
-    public boolean agregarReceptor(Entry<Integer, Socket> receptor)
+    public boolean agregarReceptor(Cliente receptor)
     {
         boolean receptorNoExistia = receptores.add(receptor);
         return receptorNoExistia;
     }
     
-    public boolean agregarReceptores(Set<Entry<Integer, Socket>> receptores)
+    public boolean agregarReceptores(Set<Cliente> receptores)
     {
         boolean receptoresCambio = receptores.addAll(receptores);
         return receptoresCambio;
@@ -88,7 +87,7 @@ public class EventoServidor extends Comunicacion {
     
     public boolean removerReceptor(Integer idReceptor)
     {
-        boolean elementosRemovidos = receptores.removeIf(r -> r.getKey().equals(idReceptor));
+        boolean elementosRemovidos = receptores.removeIf(r -> r.getId().equals(idReceptor));
         return elementosRemovidos;
     }
 }

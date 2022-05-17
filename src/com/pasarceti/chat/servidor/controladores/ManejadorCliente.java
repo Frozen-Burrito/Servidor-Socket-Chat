@@ -58,20 +58,13 @@ public class ManejadorCliente implements Runnable
     {
         try 
         {
-            // Incializar los lectores para obtener los caracteres y líneas de 
-            // la comunicación del cliente.
-            InputStreamReader entradaSocket = new InputStreamReader(socket.getInputStream());
-            BufferedReader streamEntrada = new BufferedReader(entradaSocket);
-
             while (!(socket.isClosed()))
             {
-                String lineaEncabezado = streamEntrada.readLine();
-
-                // Si readLinea() no retorna null, el socket del cliente sigue
-                // conectado.
-                if (lineaEncabezado != null)
+                AccionCliente accion = obtenerAccion();
+                
+                if (accion != null)
                 {
-                    manejarPeticion(socket, lineaEncabezado, streamEntrada);
+                    manejarAccion(accion);
                 }
                 else 
                 {
@@ -81,15 +74,14 @@ public class ManejadorCliente implements Runnable
                     
                     estadoServidor.desconectarUsuario(idUsuario);
                     
+                    socket.getInputStream().close();
                     socket.close();
-                    streamEntrada.close();
 
                     System.out.println("Socket cerrado: " + socket.isClosed());
                     System.out.println("Socket conectado: " + socket.isConnected());
                     System.out.println("Socket bound: " + socket.isBound());
                 }
             }
-
         } 
         catch (InterruptedException e) 
         {
@@ -100,22 +92,34 @@ public class ManejadorCliente implements Runnable
             System.out.println("Excepcion: " + e.getMessage());
         }
     }
-
-   /**
-     * @brief Realiza todas las acciones necesarias para procesar una peticion.
-
-     * - Interpreta la peticion.
-     * - Ejecuta la accion solicitada.
-     * - Retorna un resultado al cliente.
-    */
-    private void manejarPeticion(Socket cliente, String lineaEncabezado, BufferedReader streamEntrada) throws IOException, InterruptedException
+    
+    /**
+     * Obtiene las acciones enviadas por el cliente a través de streamEntrada.
+     * <dl>
+     * <strong>Este método bloquea, porque invoca a streamEntrada.readLine()</strong>
+     * </dl>
+     * @param cliente El socket del cliente que envía la acción.
+     * @param streamEntrada El stream de entrada del socket.
+     * @return La acción enviada por el cliente, o null si la conexión fue interrumpida.
+     * @throws IOException 
+     */
+    private AccionCliente obtenerAccion() throws IOException 
     {
-        try 
-        {       
+        // Incializar los lectores para obtener los caracteres y líneas de 
+        // la comunicación del cliente.
+        InputStreamReader entradaSocket = new InputStreamReader(socket.getInputStream());
+        BufferedReader streamEntrada = new BufferedReader(entradaSocket);
+        
+        String lineaEncabezado = streamEntrada.readLine();
+        
+        // Si readLinea() no retorna null, el socket del cliente sigue
+        // conectado.
+        if (lineaEncabezado != null)
+        {
             // Obtener los detlles de la acción del cliente.
             AccionCliente accionCliente = AccionCliente.desdeEncabezado(lineaEncabezado);
 
-            if (accionCliente.tieneJson())
+            if (accionCliente.tieneCuerpo())
             {
                 // Si la comunicación tiene un cuerpo, obtener los datos JSON
                 // del streamEntrada.
@@ -123,13 +127,30 @@ public class ManejadorCliente implements Runnable
 
                 accionCliente.setCuerpoJSON(cuerpo);
             }
+            
+            return accionCliente;
+        }
+        
+        return null;
+    }
 
+    /**
+     * @brief Maneja una acción recibida del cliente y produce un EventoServidor.
+     * 
+     * @param accion La acción del cliente.
+     * @throws IOException
+     * @throws InterruptedException 
+     */
+    private void manejarAccion(AccionCliente accion) throws IOException, InterruptedException
+    {
+        try 
+        {
             // Realizar la accion solicitada y producir un resultado.
             // NOTA: Algunos tipos de acciones tienen "efectos secundarios".
-            EventoServidor resultado = realizarAccion(accionCliente);
+            EventoServidor resultado = realizarAccion(accion);
 
             // Enviar resultado al cliente.
-            enviarEventoASocket(cliente, resultado);
+            enviarEventoASocket(socket, resultado);
         }
         catch (IllegalArgumentException e) 
         {
@@ -146,7 +167,7 @@ public class ManejadorCliente implements Runnable
                 e.getMessage()
             );
 
-            enviarEventoASocket(cliente, resultadoErr);
+            enviarEventoASocket(socket, resultadoErr);
         }
         catch (SocketTimeoutException e) 
         {

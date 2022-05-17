@@ -1,6 +1,7 @@
 package com.pasarceti.chat.servidor.controladores;
 
 import com.google.gson.Gson;
+import com.pasarceti.chat.servidor.modelos.Cliente;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
@@ -19,6 +20,7 @@ import com.pasarceti.chat.servidor.modelos.dto.DTOInvAceptada;
 import com.pasarceti.chat.servidor.modelos.dto.DTOInvitacion;
 import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
 import com.pasarceti.chat.servidor.modelos.dto.DTOUsuario;
+import java.util.Collection;
 
 /**
  * Escucha los cambios producidos en las propiedades del EstadoServidor y envía
@@ -74,8 +76,8 @@ public class NotificadorDeEventos implements PropertyChangeListener
 
                 try 
                 {
-                    Socket cliente = receptor.getValue();
-                    int idUsuario = receptor.getKey();
+                    Socket cliente = receptor.getSocket();
+                    int idUsuario = receptor.getId();
                     
                     // Usar el id de cada cliente al enviarle su notificación.
                     eventoServidor.setIdUsuarioCliente(idUsuario);
@@ -111,12 +113,12 @@ public class NotificadorDeEventos implements PropertyChangeListener
             );
         }
         
-        final Set<Map.Entry<Integer, Socket>> todosLosConectados = estadoServidor
-                .getClientesConectados().entrySet();
+        final Collection<Cliente> todosLosConectados = estadoServidor
+                .getClientesConectados().values();
                 
         // Un cambio en los usuarios conectados es enviado a todos los demas
         // usuarios que esten conectados.
-        notificacion.agregarReceptores(todosLosConectados);
+        notificacion.agregarReceptores((Set<Cliente>) todosLosConectados);
         
         return notificacion;
     }
@@ -146,7 +148,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
             if (invitacion.esDeAmistad())
             {
                 final int idUsuarioQueInvita = invitacion.getIdUsuarioQueInvita();
-                final Socket clienteQueInvito = estadoServidor.getClientePorId(idUsuarioQueInvita);
+                final Cliente clienteQueInvito = estadoServidor.getClientePorId(idUsuarioQueInvita);
                             
                 if (clienteQueInvito != null)
                 {
@@ -157,10 +159,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
                     
                     // El usuario tiene un nuevo amigo. Notificarle a ese usuario con 
                     // los datos de su nuevo amigo.
-                    notificacion.agregarReceptor(new AbstractMap.SimpleImmutableEntry<>(
-                        invitacion.getIdUsuarioQueInvita(),
-                        clienteQueInvito
-                    ));
+                    notificacion.agregarReceptor(clienteQueInvito);
                 }
             }
             else 
@@ -179,14 +178,11 @@ public class NotificadorDeEventos implements PropertyChangeListener
                     // que forman parte del grupo.
                     for (Integer idMiembro : grupo.getIdsUsuariosMiembro())
                     {
-                        final Socket socketMiembro = estadoServidor.getClientePorId(idMiembro);
+                        final Cliente clienteMiembro = estadoServidor.getClientePorId(idMiembro);
                         
-                        if (socketMiembro != null) 
+                        if (clienteMiembro != null) 
                         {
-                            notificacion.agregarReceptor(new AbstractMap.SimpleImmutableEntry<>(
-                                idMiembro,
-                                socketMiembro
-                            ));
+                            notificacion.agregarReceptor(clienteMiembro);
                         }
                     }
                 }
@@ -197,7 +193,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
             final DTOInvitacion invitacion = (DTOInvitacion) evento.getNewValue();
             
             // La invitación fue enviada, notificar al usuario invitado.
-            final Socket clienteInvitado = estadoServidor
+            final Cliente clienteInvitado = estadoServidor
                     .getClientePorId(invitacion.getIdUsuarioInvitado());
             
             if (clienteInvitado != null)
@@ -209,10 +205,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
                     jsonInvitacion
                 );
                 
-                notificacion.agregarReceptor(new AbstractMap.SimpleImmutableEntry<>(
-                    invitacion.getIdUsuarioInvitado(),
-                    clienteInvitado
-                ));
+                notificacion.agregarReceptor(clienteInvitado);
             }
         }
         else if (evento.getNewValue() == null && evento.getOldValue() instanceof DTOInvitacion)
@@ -221,7 +214,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
             final DTOInvitacion invRechazada = (DTOInvitacion) evento.getOldValue();
             
             // La invitación fue enviada, notificar al usuario invitado.
-            final Socket clienteQueInvita = estadoServidor
+            final Cliente clienteQueInvita = estadoServidor
                     .getClientePorId(invRechazada.getIdUsuarioQueInvita());
             
             // Entregar evento del servidor solo al cliente que envió la notificación, 
@@ -238,10 +231,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
                     jsonInvRechazada
                 );
                 
-                notificacion.agregarReceptor(new AbstractMap.SimpleImmutableEntry<>(
-                    invRechazada.getIdUsuarioQueInvita(),
-                    clienteQueInvita
-                ));
+                notificacion.agregarReceptor(clienteQueInvita);
             }
         }
         
@@ -256,7 +246,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
         {
             final DTOMensaje mensaje = (DTOMensaje) evento.getNewValue();
 
-            final Socket clienteDest = estadoServidor.getClientePorId(mensaje.getIdDestinatario());
+            final Cliente clienteDest = estadoServidor.getClientePorId(mensaje.getIdDestinatario());
 
             // Solo enviar el evento si el cliente del destinatario esta conectado.
             if (clienteDest != null)
@@ -268,14 +258,9 @@ public class NotificadorDeEventos implements PropertyChangeListener
                     jsonMensajeRecibido
                 );
                 
-                final Map.Entry<Integer, Socket> destinatario = new AbstractMap.SimpleImmutableEntry<>(
-                    mensaje.getIdDestinatario(),
-                    clienteDest
-                );
-                
                 // Si el mensaje fue agregado para este usuario, notificar con 
                 // los datos del nuevo mensaje.
-                notificacion.agregarReceptor(destinatario);
+                notificacion.agregarReceptor(clienteDest);
             }
         }
         
@@ -306,16 +291,13 @@ public class NotificadorDeEventos implements PropertyChangeListener
                 
                 grupo.getIdsUsuariosMiembro().forEach(idMiembro -> {
                     
-                    final Socket socketMiembro = estadoServidor.getClientePorId(idMiembro);
+                    final Cliente clienteMiembro = estadoServidor.getClientePorId(idMiembro);
                     
-                    if (socketMiembro != null) 
+                    if (clienteMiembro != null) 
                     {
                         // Agregar como receptores a todos los usuarios conectados 
                         // que forman parte del grupo.
-                        notificacion.agregarReceptor(new AbstractMap.SimpleImmutableEntry<>(
-                                idMiembro,
-                                socketMiembro
-                        ));
+                        notificacion.agregarReceptor(clienteMiembro);
                     }
                 });
             }
@@ -337,16 +319,13 @@ public class NotificadorDeEventos implements PropertyChangeListener
             // Enviar evento del servidor a cada miembro del grupo que este conectado.
             abandono.getGrupoAbandonado().getIdsUsuariosMiembro().forEach(idMiembro -> {
 
-                final Socket socketMiembro = estadoServidor.getClientePorId(idMiembro);
+                final Cliente clienteMiembro = estadoServidor.getClientePorId(idMiembro);
 
-                if (socketMiembro != null) 
+                if (clienteMiembro != null) 
                 {
                     // Agregar como receptores a todos los usuarios conectados 
                     // que forman parte del grupo.
-                    notificacion.agregarReceptor(new AbstractMap.SimpleImmutableEntry<>(
-                        idMiembro,
-                        socketMiembro
-                    ));
+                    notificacion.agregarReceptor(clienteMiembro);
                 }
             });
             

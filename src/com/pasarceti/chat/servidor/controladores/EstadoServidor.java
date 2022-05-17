@@ -1,5 +1,6 @@
 package com.pasarceti.chat.servidor.controladores;
 
+import com.pasarceti.chat.servidor.modelos.Cliente;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.net.Socket;
@@ -35,7 +36,7 @@ public class EstadoServidor
     // Un mapa concurrente con <idUsuario,  socket> de los clientes conectados. 
     // Recordar que es más eficiente en iteración que en modificación.
     // Cuando un usuario está conectado, pero no ha iniciado sesió
-    private final ConcurrentHashMap<Integer, Socket> clientesConectados = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, Cliente> clientesConectados = new ConcurrentHashMap<>();
 
     // Las listas con todos los registros actuales del servidor.
     private final CopyOnWriteArraySet<DTOUsuario> usuarios = new CopyOnWriteArraySet<>();
@@ -110,14 +111,13 @@ public class EstadoServidor
      * @brief Agrega un nuevo cliente, si no existe antes, y notifica a todos los
      * listeners de PROP_USUARIOS_CONECTADOS.
      * 
-     * @param idUsuario El ID del usuario conectado.
-     * @param socket El socket para la conexión del usuario.
+     * @param cliente El cliente a agregar.
     */
-    public synchronized void agregarCliente(int idUsuario, Socket socket)
+    public synchronized void agregarCliente(Cliente cliente)
     {
-        clientesConectados.putIfAbsent(idUsuario, socket);
+        clientesConectados.putIfAbsent(cliente.getId(), cliente);
         
-        DTOUsuario usuario = getUsuarioPorId(idUsuario);
+        DTOUsuario usuario = getUsuarioPorId(cliente.getId());
 
         soporteCambios.fireIndexedPropertyChange(
             PROP_USUARIOS_CONECTADOS, 
@@ -131,15 +131,15 @@ public class EstadoServidor
      * @brief Remueve un cliente de los usuarios conectados, si existe, y notifica
      * a todos los listeners de PROP_USUARIOS_CONECTADOS.
      * 
-     * @param idUsuario El ID del usuario a remover.
+     * @param idCliente El ID del cliente a remover.
     */
-    public synchronized void removerCliente(int idUsuario)
+    public synchronized void removerCliente(Integer idCliente)
     {
-        Socket clientePrevio = clientesConectados.remove(idUsuario);
+        Cliente clientePrevio = clientesConectados.remove(idCliente);
         
         if (clientePrevio != null) 
         {
-            soporteCambios.firePropertyChange(PROP_USUARIOS_CONECTADOS, idUsuario, null);
+            soporteCambios.firePropertyChange(PROP_USUARIOS_CONECTADOS, idCliente, null);
         }
     }
 
@@ -152,7 +152,7 @@ public class EstadoServidor
     public synchronized void desconectarUsuario(ThreadLocal<Integer> idUsuario) 
     {
         int viejoIdUsuario = idUsuario.get();
-        Socket clientePrevio = clientesConectados.remove(viejoIdUsuario);
+        Cliente clientePrevio = clientesConectados.remove(viejoIdUsuario);
 
         if (clientePrevio != null) 
         {
@@ -367,7 +367,7 @@ public class EstadoServidor
         return null;
     }
     
-    public Socket getClientePorId(Integer idCliente)
+    public Cliente getClientePorId(Integer idCliente)
     {
         return clientesConectados.get(idCliente);
     }
@@ -380,7 +380,7 @@ public class EstadoServidor
     }
 
     // Getters para cada una de las colecciones del estado.
-    public ConcurrentHashMap<Integer, Socket> getClientesConectados() 
+    public ConcurrentHashMap<Integer, Cliente> getClientesConectados() 
     {
         return clientesConectados;
     }
