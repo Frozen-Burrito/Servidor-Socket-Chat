@@ -23,6 +23,23 @@ public class Main {
 
     }
 
+    private static void pruebas_ListasDeUsuario() {
+        UsuarioDAO A = new UsuarioDAO();
+        Usuario user = A.busqueda_porNombre("usuario2");
+
+        List<Amistad> amistades = user.getAmigos();
+        for (int i = 0; i < amistades.size(); i++) {
+            System.out.println("usuario " + i + ": " + amistades.get(i).getId_usuario());
+            System.out.println("otro usuario " + i + ": " + amistades.get(i).getId_otro_usuario());
+        }
+
+        List<UsuariosGrupo> grupos = user.getGrupos();
+        for (int i = 0; i < grupos.size(); i++) {
+            System.out.println("usuario " + i + ": " + grupos.get(i).getId_usuario_miembro());
+            System.out.println("en el grupo " + i + ": " + grupos.get(i).getId_grupo());
+        }
+    }
+
     private static void pruebas_mensaje() {
         /*
         MensajeDAO mensajeDAO = new MensajeDAO();
@@ -106,7 +123,6 @@ public class Main {
         Invitacion invitacion2 = new Invitacion(2, 1, 1);
         invitacionDAO.crear_paraGrupo(invitacion2);
          */
-
         // IMPRIMIR LISTA DE INVITACIONES SEGUN USUARIO
         UsuarioDAO crud = new UsuarioDAO();
         Usuario user = crud.busqueda_porNombre("usuario2");
@@ -134,7 +150,7 @@ public class Main {
         GrupoDAO grupoDAO = new GrupoDAO();
         Grupo grupo = grupoDAO.buscar_porId(1);
 
-        List<UsuariosGrupo> ugs = ugDAO.busqueda_porGrupo(grupo);
+        List<UsuariosGrupo> ugs = ugDAO.busqueda_porGrupo(grupo.getId());
         for (int i = 0; i < ugs.size(); i++) {
             System.out.println("Usuarios grupo. Id usuario: " + ugs.get(i).getId_usuario_miembro() + " Id Grupo: " + ugs.get(i).getId_grupo());
         }
