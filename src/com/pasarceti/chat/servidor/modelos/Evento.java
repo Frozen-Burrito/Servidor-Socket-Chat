@@ -1,45 +1,49 @@
-
 package com.pasarceti.chat.servidor.modelos;
 
-import java.sql.Date;
+import java.time.LocalDateTime;
 
+/**
+ * Un evento del servidor chat, es enviado por cada accion de un cliente.
+ */
 public class Evento {
     
-    private int id; 
-    private Date fecha;
-    private String datos;
+    private final int id; 
+    private final TipoDeEvento tipo;
+    private final LocalDateTime fecha;
+    private final String datos;
 
-    public Evento() {
-    }
-
-    public Evento(int id, Date fecha, String datos) {
+    public Evento(int id, TipoDeEvento tipo, String datos) {
         this.id = id;
+        this.tipo = tipo;
+        this.fecha = LocalDateTime.now();
+        this.datos = datos;
+    }
+  
+    public Evento(int id, TipoDeEvento tipo, LocalDateTime fecha, String datos) {
+        this.id = id;
+        this.tipo = tipo;
         this.fecha = fecha;
         this.datos = datos;
+    }
+  
+    @Override
+    public String toString() {
+        return String.format("[%s] - %s: %s", fecha.toString(), tipo.toString(), datos);
     }
 
     public int getId() {
         return id;
     }
-
-    public void setId(int id) {
-        this.id = id;
+  
+    public final TipoDeEvento getTipoDeEvento() {
+        return tipo;
     }
 
-    public Date getFecha() {
+    public LocalDateTime getFecha() {
         return fecha;
-    }
-
-    public void setFecha(Date fecha) {
-        this.fecha = fecha;
     }
 
     public String getDatos() {
         return datos;
     }
-
-    public void setDatos(String datos) {
-        this.datos = datos;
-    }
-
 }

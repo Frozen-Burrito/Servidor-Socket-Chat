@@ -1,162 +1,45 @@
-package com.pasarceti.chat.servidor;
+import javax.swing.SwingUtilities;
 
-import com.pasarceti.chat.servidor.bd.ControladorBD;
-import com.pasarceti.chat.servidor.modelos.Amistad;
-import com.pasarceti.chat.servidor.modelos.AmistadDAO;
-import com.pasarceti.chat.servidor.modelos.Grupo;
-import com.pasarceti.chat.servidor.modelos.GrupoDAO;
-import com.pasarceti.chat.servidor.modelos.Invitacion;
-import com.pasarceti.chat.servidor.modelos.InvitacionDAO;
-import com.pasarceti.chat.servidor.modelos.Mensaje;
-import com.pasarceti.chat.servidor.modelos.MensajeDAO;
-import com.pasarceti.chat.servidor.modelos.Usuario;
-import com.pasarceti.chat.servidor.modelos.UsuarioDAO;
-import com.pasarceti.chat.servidor.modelos.UsuariosGrupo;
-import com.pasarceti.chat.servidor.modelos.UsuariosGrupoDAO;
-import java.sql.Date;
-import java.util.List;
-import org.apache.commons.codec.digest.DigestUtils;
+import com.pasarceti.chat.servidor.controladores.ServidorChat;
+import com.pasarceti.chat.servidor.logeventos.LoggerDeEventos;
+import java.util.logging.Level;
 
 public class Main {
 
-    public static void main(String[] args) {
-
-    }
-
-    private static void pruebas_ListasDeUsuario() {
-        UsuarioDAO A = new UsuarioDAO();
-        Usuario user = A.busqueda_porNombre("usuario2");
-
-        List<Amistad> amistades = user.getAmigos();
-        for (int i = 0; i < amistades.size(); i++) {
-            System.out.println("usuario " + i + ": " + amistades.get(i).getId_usuario());
-            System.out.println("otro usuario " + i + ": " + amistades.get(i).getId_otro_usuario());
-        }
-
-        List<UsuariosGrupo> grupos = user.getGrupos();
-        for (int i = 0; i < grupos.size(); i++) {
-            System.out.println("usuario " + i + ": " + grupos.get(i).getId_usuario_miembro());
-            System.out.println("en el grupo " + i + ": " + grupos.get(i).getId_grupo());
-        }
-    }
-
-    private static void pruebas_mensaje() {
-        /*
-        MensajeDAO mensajeDAO = new MensajeDAO();
-        Date fecha = new Date(11, 11, 2022);
-        Mensaje mensaje = new Mensaje("Holaaaaaa", 1, 3, 0, fecha);
-        //  ugDAO.crear(ug);
-        //mensajeDAO.crear_paraUsuario(mensaje);
-
-        UsuarioDAO crud = new UsuarioDAO();
-        Usuario user = crud.busqueda_porNombre("usuario3");
-        /*
-        GrupoDAO grupoDAO = new GrupoDAO();
-        Grupo grupo = grupoDAO.buscar_porId(1);
-
-        List<Mensaje> mensajes = mensajeDAO.busqueda_DestUsuario(user);
-        for (int i = 0; i < mensajes.size(); i++) {
-            System.out.println("Mensajes enviados a usuario. Id usuario destinatario: " + mensajes.get(i).getId_dest_usuario() + " Desde usuario: " + mensajes.get(i).getId_autor());
-        }
-         */
-    }
-
-    private static void pruebas_usuario() {
-        UsuarioDAO crud = new UsuarioDAO();
-
-        Usuario user = new Usuario("usuario1", "aaa");
-        Usuario user2 = new Usuario("usuario2", "aaa");
-
-        crud.crear(user);
-        crud.crear(user2);
-        /*
-        String parsedPassword = DigestUtils.sha256Hex("aaa");
-        Usuario usuario = crud.read_withCredentials("aaaa", parsedPassword);
+    public static void main(String[] args) throws InterruptedException {
         
-        usuario.setNombre_usuario("aaaa");
-        crud.delete(usuario);
-         */
-    }
-
-    private static void pruebas_grupo() {
-        GrupoDAO grupoDAO = new GrupoDAO();
-        Grupo grupo = new Grupo("Grupo1");
-        grupo = grupoDAO.buscar_porId(1);
-        //grupoDAO.crear(grupo);
-
-        grupoDAO.eliminar(grupo);
-    }
-
-    private static void puebas_amistad() {
-
-        AmistadDAO amistadCRUD = new AmistadDAO();
-        Amistad amistad = new Amistad(1, 3);
-        amistadCRUD.crear(amistad);
-        Amistad amistad2 = new Amistad(3, 1);
-        amistadCRUD.crear(amistad2);
-        /*
-        List<Amistad> amistades = amistadCRUD.busqueda_porUsuario(amistad);
-        for (int i = 0; i < amistades.size(); i++) {
-            System.out.println("usuario " + i + ": " + amistades.get(i).getId_usuario());
-            System.out.println("otro usuario " + i + ": " + amistades.get(i).getId_otro_usuario());
-        }
-         */
- /*
-        amistad = amistadCRUD.read(9, 3);
-        if (amistad == null) {
-            System.out.println("NO existe!");
-        }
-        else
-            System.out.println(amistad.getId_otro_usuario());            
-         */
-        // pruebas_usuario();
-    }
-
-    private static void puebas_invitacion() {
-        InvitacionDAO invitacionDAO = new InvitacionDAO();
-
-        // CREAR INVITACIONES 
+        ServidorChat servidor = new ServidorChat(9998, Level.INFO);
 /*
-        Invitacion invitacion = new Invitacion(2, 0, 1);
-        invitacionDAO.crear_paraAmistad(invitacion);
+        El servidor envía los eventos a una fila FIFO que bloquea. Con esto, otras
+        clases o hilos pueden "consumir" los eventos producidos por el servidor.
+        
+        Para que una clase reciba los eventos del servidor, debería obtener una 
+        referencia a la fila de eventos usando servidor.getQueueEventos() y 
+        ejecutar el método poll() de la fila:
+        
+        Evento evento = queueEventos.poll(1, TimeUnit.MINUTES);
+        
+        Este método bloquea y tiene un timeout, lo que significa que el método 
+        retornará un evento cuando esté disponible, o null si se excedió el tiempo
+        de espera.
+        
+        Ver el ejemplo con la clase LoggerDeEventos, que consume los eventos del 
+        servidor y los muestra en consola con un Logger.
+*/
+        // Crear un logger que consuma los eventos producidos por el servidor.
+        LoggerDeEventos logEventos = new LoggerDeEventos(servidor.getQueueEventos());
 
-        Invitacion invitacion2 = new Invitacion(2, 1, 1);
-        invitacionDAO.crear_paraGrupo(invitacion2);
-         */
-        // IMPRIMIR LISTA DE INVITACIONES SEGUN USUARIO
-        UsuarioDAO crud = new UsuarioDAO();
-        Usuario user = crud.busqueda_porNombre("usuario2");
-        System.out.println("Usuario Id: " + user.getId());
+        logEventos.start();
+        
+        // Ejecutar el servidor en un hilo aparte.
+        Thread hiloServidor = new Thread(servidor);
+        hiloServidor.start();
 
-        List<Invitacion> invitaciones = invitacionDAO.busqueda_porUsuarioEmisor(user);
-        if (!invitaciones.isEmpty()) {
-            for (int i = 0; i < invitaciones.size(); i++) {
-                System.out.println("Invitacion. Id: " + invitaciones.get(i).getId() + " Grupo: " + invitaciones.get(i).getId_grupo()
-                        + " Usuario EMISOR: " + invitaciones.get(i).getId_usuario_emisor()
-                        + " Usuario INVITADO: " + invitaciones.get(i).getId_usuario_invitado());
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                //TODO: Iniciar la ejecución del GUI.
+//                gui.show(); // Quizas algo asi?
             }
-        }
-
+        });
     }
-
-    private static void puebas_usuarios_grupo() {
-        UsuariosGrupoDAO ugDAO = new UsuariosGrupoDAO();
-        UsuariosGrupo ug = new UsuariosGrupo(1, 3);
-        //  ugDAO.crear(ug);
-
-        UsuarioDAO crud = new UsuarioDAO();
-        Usuario user = crud.busqueda_porNombre("usuario1");
-
-        GrupoDAO grupoDAO = new GrupoDAO();
-        Grupo grupo = grupoDAO.buscar_porId(1);
-
-        List<UsuariosGrupo> ugs = ugDAO.busqueda_porGrupo(grupo.getId());
-        for (int i = 0; i < ugs.size(); i++) {
-            System.out.println("Usuarios grupo. Id usuario: " + ugs.get(i).getId_usuario_miembro() + " Id Grupo: " + ugs.get(i).getId_grupo());
-        }
-
-        ugDAO.eliminar(ug);
-
-    }
-
 }
