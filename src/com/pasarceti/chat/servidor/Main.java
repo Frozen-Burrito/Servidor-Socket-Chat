@@ -2,7 +2,9 @@ import javax.swing.SwingUtilities;
 
 import com.pasarceti.chat.servidor.controladores.ServidorChat;
 import com.pasarceti.chat.servidor.logeventos.LoggerDeEventos;
+import com.pasarceti.chat.servidor.frame.interfaz;
 import java.util.logging.Level;
+
 
 public class Main {
 
@@ -39,6 +41,8 @@ public class Main {
             public void run() {
                 //TODO: Iniciar la ejecución del GUI.
 //                gui.show(); // Quizas algo asi?
+interfaz Frame= new interfaz ();
+        Frame.setVisible(true);
             }
         });
     }
