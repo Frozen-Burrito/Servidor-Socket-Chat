@@ -1,0 +1,112 @@
+package com.pasarceti.chat.servidor.modelos;
+
+import com.pasarceti.chat.servidor.bd.ControladorBD;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class MensajeDAO extends ControladorBD {
+    
+    public MensajeDAO() {
+        super();
+    }
+
+    // Crear mensaje para otro usuario
+    public void crear_paraUsuario(Mensaje mensaje) {
+        PreparedStatement ps;
+        try {
+            ps = getC().prepareStatement("INSERT INTO mensaje (contenido, fecha, id_autor, id_dest_usuario) VALUES(?,?,?,?)");
+            ps.setString(1, mensaje.getContenido());
+            ps.setDate(2, mensaje.getFecha());
+            ps.setInt(3, mensaje.getId_autor());
+            ps.setInt(4, mensaje.getId_dest_usuario());
+            ps.executeUpdate();
+        } catch (SQLException ex) {
+            Logger.getLogger(MensajeDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    // Crear mensaje para grupo
+    public void crear_paraGrupo(Mensaje mensaje) {
+        PreparedStatement ps;
+        try {
+            ps = getC().prepareStatement("INSERT INTO mensaje (contenido, fecha, id_autor, id_dest_grupo) VALUES(?,?,?,?)");
+            ps.setString(1, mensaje.getContenido());
+            ps.setDate(2, mensaje.getFecha());
+            ps.setInt(3, mensaje.getId_autor());
+            ps.setInt(4, mensaje.getId_dest_grupo());
+            ps.executeUpdate();
+        } catch (SQLException ex) {
+            Logger.getLogger(MensajeDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+
+    // Buscar una lista de mensajes enviados a un usuario
+    public List<Mensaje> busqueda_DestUsuario(Usuario usuario) {
+        PreparedStatement ps;
+        ResultSet res;
+        List<Mensaje> mensajes = new ArrayList<>();
+        try {
+            ps = getC().prepareStatement("SELECT * from mensaje WHERE id_dest_usuario = ?");
+            ps.setInt(1, usuario.getId());
+            res = ps.executeQuery();
+            while (res.next()) {
+                Mensaje mensaje = new Mensaje();
+                mensaje.setId(res.getInt("id"));
+                mensaje.setContenido(res.getString("contenido"));
+                mensaje.setFecha(res.getDate("fecha"));
+                mensaje.setId_autor(res.getInt("id_autor"));
+                mensaje.setId_dest_grupo(res.getInt("id_dest_grupo"));
+                mensaje.setId_dest_usuario(res.getInt("id_dest_usuario"));
+                mensajes.add(mensaje);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(MensajeDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return mensajes;
+    }
+
+
+    // Buscar una lista de mensajes enviados a un grupo
+    public List<Mensaje> busqueda_porGrupo(Grupo grupo) {
+        PreparedStatement ps;
+        ResultSet res;
+        List<Mensaje> mensajes = new ArrayList<>();
+        try {
+            ps = getC().prepareStatement("SELECT * from mensaje WHERE id_dest_grupo = ?");
+            ps.setInt(1, grupo.getId());
+            res = ps.executeQuery();
+            while (res.next()) {
+                Mensaje mensaje = new Mensaje();
+                mensaje.setId(res.getInt("id"));
+                mensaje.setContenido(res.getString("contenido"));
+                mensaje.setFecha(res.getDate("fecha"));
+                mensaje.setId_autor(res.getInt("id_autor"));
+                mensaje.setId_dest_grupo(res.getInt("id_dest_grupo"));
+                mensaje.setId_dest_usuario(res.getInt("id_dest_usuario"));
+                mensajes.add(mensaje);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(MensajeDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return mensajes;
+    }
+
+    // Eliminar mensaje
+    public void eliminar(Mensaje mensaje) {
+        PreparedStatement ps;
+        try {
+            ps = getC().prepareStatement("DELETE FROM mensaje WHERE id = ?");
+            ps.setInt(1, mensaje.getId());
+            ps.executeUpdate();
+        } catch (Exception ex) {
+            Logger.getLogger(MensajeDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+}

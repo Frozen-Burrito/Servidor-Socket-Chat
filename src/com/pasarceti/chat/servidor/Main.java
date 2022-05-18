@@ -1,5 +1,3 @@
-package com.pasarceti.chat.servidor;
-
 import javax.swing.SwingUtilities;
 
 import com.pasarceti.chat.servidor.controladores.ServidorChat;
