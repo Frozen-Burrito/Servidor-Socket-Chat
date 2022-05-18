@@ -1,5 +1,7 @@
 package com.pasarceti.chat.servidor.controladores;
 
+import com.pasarceti.chat.servidor.modelos.Amistad;
+import com.pasarceti.chat.servidor.modelos.AmistadDAO;
 import com.pasarceti.chat.servidor.modelos.Cliente;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
@@ -8,7 +10,10 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import com.pasarceti.chat.servidor.modelos.TipoDestinatario;
+import com.pasarceti.chat.servidor.modelos.UsuariosGrupo;
+import com.pasarceti.chat.servidor.modelos.UsuariosGrupoDAO;
 import com.pasarceti.chat.servidor.modelos.dto.DTOAbandonarGrupo;
+import com.pasarceti.chat.servidor.modelos.dto.DTOContactos;
 import com.pasarceti.chat.servidor.modelos.dto.DTOGrupo;
 import com.pasarceti.chat.servidor.modelos.dto.DTOInvAceptada;
 import com.pasarceti.chat.servidor.modelos.dto.DTOInvitacion;
@@ -335,25 +340,43 @@ public class EstadoServidor
      * @brief Busca todos los contactos de un usuario y los retorna en una sola
      * lista de posibles Destinatarios (usuarios, amigos y grupos).
      * 
-     * @param idUsuario El ID del usuario a remover.
+     * @param idUsuario El ID del usuario que va a obtener sus contactos.
+     * @return El objeto con las listas de contactos del usuario.
     */
-    public void getContactosUsuario(int idUsuario) 
+    public DTOContactos getContactosUsuario(int idUsuario) 
     {
-//        final List<DTODestinatario> contactos = new ArrayList<>();
+        List<Amistad> amistades = new AmistadDAO().busqueda_porUsuario(idUsuario);
+        List<DTOUsuario> amigos = getAmigosDeUsuario(idUsuario, amistades);
 
-//        for (DTOUsuario)
+        List<DTOUsuario> usuariosConectados = getUsuariosConectados(idUsuario, amigos);
+
+        List<UsuariosGrupo> usuariosGrupo = new UsuariosGrupoDAO().busqueda_porIdUsuario(idUsuario);
+        List<DTOGrupo> grupos = getGruposDeUsuario(idUsuario, usuariosGrupo);
+        
+        return new DTOContactos(
+            amigos,
+            usuariosConectados,
+            grupos,
+            new ArrayList<>()
+        );
     }
-
-    /**
-     * @brief Busca todas las invitaciones pendientes de un usuario en 
-     * especifico.
-     * 
-     * @param idUsuario El ID del usuario a remover.
-     * @return La coleccion con todas las invitaciones pendientes.
-    */
-    public List<DTOInvitacion> getInvitacionesUsuario(int idUsuario)
+    
+     public List<DTOUsuario> getUsuariosConectados(int idUsuarioActual, List<DTOUsuario> amigos)
     {
-        return invitaciones.get(idUsuario);
+        List<DTOUsuario> usuariosConectados = new ArrayList<>();
+
+        clientesConectados.forEachKey(100, (Integer idUsuario) -> {
+            if (idUsuario != idUsuarioActual)
+            {
+                DTOUsuario usuario = getUsuarioPorId(idUsuario);
+                if (usuario != null && !amigos.contains(usuario))
+                {
+                    usuariosConectados.add(usuario);
+                }
+            }
+        });
+
+        return usuariosConectados;
     }
     
     public DTOUsuario getUsuarioPorId(int idUsuario) 
@@ -367,6 +390,34 @@ public class EstadoServidor
         }
         
         return null;
+    }
+    
+    /**
+     * @brief Busca todas las invitaciones pendientes de un usuario en 
+     * especifico.
+     * 
+     * @param idUsuario El ID del usuario a remover.
+     * @return La coleccion con todas las invitaciones pendientes.
+    */
+    public List<DTOInvitacion> getInvitacionesUsuario(int idUsuario)
+    {
+        return invitaciones.get(idUsuario);
+    }
+    
+    public List<DTOUsuario> getAmigosDeUsuario(int idUsuario, List<Amistad> amistades)
+    {
+        List<DTOUsuario> amigos = new ArrayList<>();
+
+        amistades.forEach((amistad) -> {
+            DTOUsuario usuarioAmigo = getUsuarioPorId(idUsuario);
+
+            if (usuarioAmigo != null)
+            {
+                amigos.add(usuarioAmigo);
+            }
+        });
+
+        return amigos;
     }
     
     public Cliente getClientePorId(Integer idCliente)
@@ -413,6 +464,21 @@ public class EstadoServidor
         }
         
         return grupoConId;
+    }
+    
+    public List<DTOGrupo> getGruposDeUsuario(int idUsuario, List<UsuariosGrupo> usuariosGrupo)
+    {
+        List<DTOGrupo> grupos = new ArrayList<>();
+
+        usuariosGrupo.forEach((usuarioGrupo) ->{
+            DTOGrupo grupoConId = getGrupoPorId(usuarioGrupo.getId_grupo());            
+            if (grupoConId != null)
+            {
+                grupos.add(grupoConId);
+            }
+        });
+
+        return grupos;
     }
 
     public ConcurrentHashMap<Integer, List<DTOMensaje>> getMensajesRecibidos() {

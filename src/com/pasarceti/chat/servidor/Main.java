@@ -3,8 +3,9 @@ package com.pasarceti.chat.servidor;
 import javax.swing.SwingUtilities;
 
 import com.pasarceti.chat.servidor.controladores.ServidorChat;
-import com.pasarceti.chat.servidor.logeventos.LoggerDeEventos;
 import com.pasarceti.chat.servidor.bd.CredencialesBD;
+import com.pasarceti.chat.servidor.gui.InterfazGrafica;
+import com.pasarceti.chat.servidor.gui.WorkerEventos;
 import java.util.logging.Level;
 
 public class Main {
@@ -35,10 +36,10 @@ public class Main {
         Ver el ejemplo con la clase LoggerDeEventos, que consume los eventos del 
         servidor y los muestra en consola con un Logger.
 */
-        // Crear un logger que consuma los eventos producidos por el servidor.
-        LoggerDeEventos logEventos = new LoggerDeEventos(servidor.getQueueEventos());
-
-        logEventos.start();
+        
+        InterfazGrafica gui = new InterfazGrafica();
+        
+        WorkerEventos workerEventos = new WorkerEventos(servidor.getQueueEventos(), gui);
         
         // Ejecutar el servidor en un hilo aparte.
         Thread hiloServidor = new Thread(servidor);
@@ -47,8 +48,9 @@ public class Main {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                //TODO: Iniciar la ejecución del GUI.
-//                gui.show(); // Quizas algo asi?
+              // Iniciar a ejecutar la interfaz
+              workerEventos.execute();
+              gui.setVisible(true);
             }
         });
     }

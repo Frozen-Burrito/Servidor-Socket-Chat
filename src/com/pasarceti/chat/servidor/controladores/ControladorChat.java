@@ -3,41 +3,11 @@ package com.pasarceti.chat.servidor.controladores;
 import java.net.Socket;
 import java.util.ArrayList;
 import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
-import com.pasarceti.chat.servidor.modelos.AccionCliente;
-import com.pasarceti.chat.servidor.modelos.Amistad;
-import com.pasarceti.chat.servidor.modelos.AmistadDAO;
-import com.pasarceti.chat.servidor.modelos.Cliente;
-import com.pasarceti.chat.servidor.modelos.ErrorEvento;
-import com.pasarceti.chat.servidor.modelos.EventoServidor;
-import com.pasarceti.chat.servidor.modelos.Grupo;
-import com.pasarceti.chat.servidor.modelos.GrupoDAO;
-import com.pasarceti.chat.servidor.modelos.Invitacion;
-import com.pasarceti.chat.servidor.modelos.InvitacionDAO;
-import com.pasarceti.chat.servidor.modelos.Mensaje;
-import com.pasarceti.chat.servidor.modelos.MensajeDAO;
-import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
-import com.pasarceti.chat.servidor.modelos.TipoDestinatario;
-import com.pasarceti.chat.servidor.modelos.Usuario;
-import com.pasarceti.chat.servidor.modelos.UsuarioDAO;
-import com.pasarceti.chat.servidor.modelos.UsuariosGrupo;
-import com.pasarceti.chat.servidor.modelos.UsuariosGrupoDAO;
-import com.pasarceti.chat.servidor.modelos.dto.DTOAbandonarGrupo;
-import com.pasarceti.chat.servidor.modelos.dto.DTOCambioPassword;
-import com.pasarceti.chat.servidor.modelos.dto.DTOContacto;
-import com.pasarceti.chat.servidor.modelos.dto.DTOContactos;
-import com.pasarceti.chat.servidor.modelos.dto.DTOCredUsuario;
-import com.pasarceti.chat.servidor.modelos.dto.DTOGrupo;
-import com.pasarceti.chat.servidor.modelos.dto.DTOIdEntidad;
-import com.pasarceti.chat.servidor.modelos.dto.DTOInvAceptada;
-import com.pasarceti.chat.servidor.modelos.dto.DTOInvitacion;
-import com.pasarceti.chat.servidor.modelos.dto.DTOListaMensajes;
-import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
-import com.pasarceti.chat.servidor.modelos.dto.DTONuevoMensaje;
-import com.pasarceti.chat.servidor.modelos.dto.DTONuevoGrupo;
-import com.pasarceti.chat.servidor.modelos.dto.DTOUsuario;
-import java.time.LocalDateTime;
 import java.util.List;
+import com.google.gson.JsonSyntaxException;
+import org.apache.commons.codec.digest.DigestUtils;
+import com.pasarceti.chat.servidor.modelos.*;
+import com.pasarceti.chat.servidor.modelos.dto.*;
 
 /**
  * Permite a los clientes realizar acciones con el chat, que producen un resultado.
@@ -72,6 +42,7 @@ public class ControladorChat
     private final GrupoDAO grupoDAO;
     private final InvitacionDAO invitacionDAO;
     private final UsuariosGrupoDAO usuariosGrupoDAO;
+    private final AmistadDAO amistadDAO;
 
     public ControladorChat(EstadoServidor estadoServidor, ThreadLocal<Integer> idUsuario)
     {
@@ -83,6 +54,7 @@ public class ControladorChat
         grupoDAO = new GrupoDAO();
         invitacionDAO = new InvitacionDAO();
         usuariosGrupoDAO = new UsuariosGrupoDAO();
+        amistadDAO = new AmistadDAO();
     }
 
     /**
@@ -97,6 +69,8 @@ public class ControladorChat
     {
         final int idUsuarioAccion = accionCliente.getIdUsuarioCliente();
         final String datosJson = accionCliente.getCuerpoJSON();
+        
+        System.out.println(accionCliente.getTipoDeAccion());
         
         if (!accionCliente.esAccionDeAutenticacion() && idUsuarioAccion != idUsuario.get()) 
         {
@@ -200,7 +174,9 @@ public class ControladorChat
             if (usuario != null && usuario.getPassword() != null) 
             {
                 // El usuario ya ha sido creado, comparar las contraseñas.
-                boolean passCoinciden = usuario.getPassword().equals(credenciales.getPassword());
+                boolean passCoinciden = usuario.getPassword().equals(
+                    DigestUtils.sha256Hex(credenciales.getPassword())
+                );
 
                 if (passCoinciden)
                 {
@@ -208,14 +184,8 @@ public class ControladorChat
 
                     estadoServidor.agregarCliente(new Cliente(idUsuarioDeBD, cliente));
                     
-                    //TODO: Obtener datos del usuario (Amigos, grupos, invitaciones).
-                    DTOContactos listaDeContactos;
-                    listaDeContactos = new DTOContactos(
-                            new ArrayList<>(),
-                            new ArrayList<>(),
-                            new ArrayList<>(),
-                            new ArrayList<>()
-                    );
+                    // Obtener datos del usuario (Amigos, grupos, invitaciones).
+                    DTOContactos listaDeContactos = estadoServidor.getContactosUsuario(usuario.getId());
 
                     String contactosJson = gson.toJson(listaDeContactos);
                     
@@ -361,7 +331,6 @@ public class ControladorChat
             }
             else 
             {
-                final UsuarioDAO usuarioDAO = new UsuarioDAO();
                 Usuario usuario = usuarioDAO.busqueda_porId(contactoDeMensajes.getIdDestinatario());
                 
                 if (usuario != null)
@@ -626,7 +595,6 @@ public class ControladorChat
                             dtoInvitacion.getIdUsuarioInvitado()
                     );
                     
-                    AmistadDAO amistadDAO = new AmistadDAO();
                     amistadDAO.crear(amistad);
                 }
                 else 
