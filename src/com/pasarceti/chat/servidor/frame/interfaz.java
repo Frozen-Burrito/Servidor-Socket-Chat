@@ -154,11 +154,17 @@ public class interfaz extends javax.swing.JFrame {
         jPanel7.setLayout(jPanel7Layout);
         jPanel7Layout.setHorizontalGroup(
             jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 305, Short.MAX_VALUE)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel7Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 293, Short.MAX_VALUE)
+                .addContainerGap())
         );
         jPanel7Layout.setVerticalGroup(
             jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 342, Short.MAX_VALUE)
+            .addGroup(jPanel7Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 330, Short.MAX_VALUE)
+                .addContainerGap())
         );
 
         jScrollPane1.setViewportView(jPanel7);
@@ -236,7 +242,7 @@ public class interfaz extends javax.swing.JFrame {
 
         jScrollPane2.setBackground(new java.awt.Color(255, 204, 199));
 
-        jList2.setModel(new javax.swing.AbstractListModel<String>() {
+        jList2.setModel(new javax.swing.ListModel<String>() {
             String[] strings = { "Eventos del cliente", "\t1.1 Registrar usuario", "\t1.2 Iniciar sesión", "\t1.3 Cerrar sesión", "\t1.4 Recuperar contraseña", "\t1.5 enviar mensaje", "\t1.6 agregar amigo", "\t1.7 eliminar amigo", "\t1.8 crear grupo", "\t1.9 enviar invitación", "\t1.10 aceptar invitación", "\t1.11 rechazar invitación", "\t1.12 abandonar grupo", "Eventos del servidor", "\t2.1 ok", "\t2.2 error del clinete", "\t2.3 error del servidor", "\t2.4 error de autenticación", "\t2.5 usuario conectado", "\t2.6 usuario desconectado", "\t2.7 mensaje enviado", "\t2.8 invitación enviada", "\t2.9 miembro se unió", "\t2.10 miembro abandonó", "\t2.11 grupo eliminado", " " };
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
