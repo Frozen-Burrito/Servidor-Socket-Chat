@@ -1,5 +1,7 @@
 package com.pasarceti.chat.servidor.modelos.dto;
 
+import com.pasarceti.chat.servidor.modelos.Invitacion;
+
 /**
  * Una invitación realizada por un usuario, que invita a otro usuario a ser 
  * amigo del usuario que le invitó, o que invita a otro usuario a ser miembro 
@@ -41,6 +43,15 @@ public class DTOInvitacion
         this.idUsuarioQueInvita = idUsuarioQueInvita;
         this.idUsuarioInvitado = idUsuarioInvitado;
         this.idGrupo = idGrupo;
+    }
+    
+    public static DTOInvitacion desdeModelo(Invitacion invitacion)
+    {
+        return new DTOInvitacion(
+            invitacion.getId_usuario_emisor(),
+            invitacion.getId_usuario_invitado(),
+            invitacion.getId_grupo()
+        );
     }
     
     /**

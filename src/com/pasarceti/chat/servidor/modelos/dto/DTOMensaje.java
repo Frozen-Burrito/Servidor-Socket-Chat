@@ -29,6 +29,15 @@ public class DTOMensaje
         this.idDestinatario = idDestinatario;
         this.idAutor = idAutor;
     }
+    
+    public DTOMensaje(int idMensaje, String contenido, LocalDateTime fecha, int tipoDestinatario, int idDestinatario, int idAutor) {
+        this.idMensaje = idMensaje;
+        this.fecha = fecha;
+        this.contenido = contenido;
+        this.tipoDestinatario = TipoDestinatario.values()[tipoDestinatario];
+        this.idDestinatario = idDestinatario;
+        this.idAutor = idAutor;
+    }
 
     public void setIdMensaje(int idMensaje) {
         this.idMensaje = idMensaje;

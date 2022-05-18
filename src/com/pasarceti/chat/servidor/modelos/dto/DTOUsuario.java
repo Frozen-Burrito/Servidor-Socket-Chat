@@ -1,5 +1,6 @@
 package com.pasarceti.chat.servidor.modelos.dto;
 
+import com.pasarceti.chat.servidor.modelos.Usuario;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -26,6 +27,15 @@ public class DTOUsuario
         this.nombreUsuario = nombreUsuario;
         
         this.conectado.set(conectado);
+    }
+    
+    public static DTOUsuario desdeModelo(Usuario usuario)
+    {
+        return new DTOUsuario(
+            usuario.getId(),
+            usuario.getNombre_usuario(),
+            false
+        );
     }
 
     public int getIdUsuario() 

@@ -1,8 +1,11 @@
+package com.pasarceti.chat.servidor;
+
 import javax.swing.SwingUtilities;
 
 import com.pasarceti.chat.servidor.controladores.ServidorChat;
 import com.pasarceti.chat.servidor.logeventos.LoggerDeEventos;
 import com.pasarceti.chat.servidor.frame.interfaz;
+import com.pasarceti.chat.servidor.bd.CredencialesBD;
 import java.util.logging.Level;
 
 
@@ -10,7 +13,13 @@ public class Main {
 
     public static void main(String[] args) throws InterruptedException {
         
-        ServidorChat servidor = new ServidorChat(9998, Level.INFO);
+        final CredencialesBD credenciales = new CredencialesBD(
+            "jdbc:mysql://localhost/chat",
+            "root",
+            ""
+        );
+        
+        ServidorChat servidor = new ServidorChat(9998, Level.INFO, credenciales);
 /*
         El servidor envía los eventos a una fila FIFO que bloquea. Con esto, otras
         clases o hilos pueden "consumir" los eventos producidos por el servidor.
@@ -38,11 +47,11 @@ public class Main {
         hiloServidor.start();
 
         SwingUtilities.invokeLater(new Runnable() {
+            @Override
             public void run() {
-                //TODO: Iniciar la ejecución del GUI.
-//                gui.show(); // Quizas algo asi?
-interfaz Frame= new interfaz ();
-        Frame.setVisible(true);
+              // Iniciar a ejecutar la interfaz
+              interfaz Frame= new interfaz ();
+              Frame.setVisible(true);
             }
         });
     }

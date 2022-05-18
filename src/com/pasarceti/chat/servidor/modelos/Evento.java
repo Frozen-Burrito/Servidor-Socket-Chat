@@ -12,8 +12,8 @@ public class Evento {
     private final LocalDateTime fecha;
     private final String datos;
 
-    public Evento(int id, TipoDeEvento tipo, String datos) {
-        this.id = id;
+    public Evento(TipoDeEvento tipo, String datos) {
+        this.id = -1;
         this.tipo = tipo;
         this.fecha = LocalDateTime.now();
         this.datos = datos;

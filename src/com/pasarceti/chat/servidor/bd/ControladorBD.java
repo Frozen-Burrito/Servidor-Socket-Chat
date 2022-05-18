@@ -10,6 +10,8 @@ public class ControladorBD {
 
     protected Connection c;
     
+    private static CredencialesBD credenciales = null;
+    
     public ControladorBD() {
 
         try {
@@ -21,14 +23,23 @@ public class ControladorBD {
         
         try {
             c = DriverManager.getConnection(
-                    "jdbc:mysql://localhost/chat","root","");
+                    credenciales.getUrl(), 
+                    credenciales.getUsuario(), 
+                    credenciales.getPassword()
+            );
         } catch (SQLException ex) {
             Logger.getLogger(ControladorBD.class.getName()).log(Level.SEVERE, null, ex);
-        }        
+        } catch (NullPointerException ex) {
+            Logger.getLogger(ControladorBD.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public static void setCredenciales(CredencialesBD nuevasCredenciales) {
+        // Cuidado, esto no es una buena manera de hacerlo.
+        credenciales = nuevasCredenciales;
     }
 
     public Connection getC() {
         return c;
     }
-
 }

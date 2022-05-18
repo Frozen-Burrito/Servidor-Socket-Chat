@@ -5,10 +5,23 @@ import java.util.ArrayList;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.pasarceti.chat.servidor.modelos.AccionCliente;
+import com.pasarceti.chat.servidor.modelos.Amistad;
+import com.pasarceti.chat.servidor.modelos.AmistadDAO;
 import com.pasarceti.chat.servidor.modelos.Cliente;
+import com.pasarceti.chat.servidor.modelos.ErrorEvento;
 import com.pasarceti.chat.servidor.modelos.EventoServidor;
+import com.pasarceti.chat.servidor.modelos.Grupo;
+import com.pasarceti.chat.servidor.modelos.GrupoDAO;
+import com.pasarceti.chat.servidor.modelos.Invitacion;
+import com.pasarceti.chat.servidor.modelos.InvitacionDAO;
+import com.pasarceti.chat.servidor.modelos.Mensaje;
+import com.pasarceti.chat.servidor.modelos.MensajeDAO;
 import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
 import com.pasarceti.chat.servidor.modelos.TipoDestinatario;
+import com.pasarceti.chat.servidor.modelos.Usuario;
+import com.pasarceti.chat.servidor.modelos.UsuarioDAO;
+import com.pasarceti.chat.servidor.modelos.UsuariosGrupo;
+import com.pasarceti.chat.servidor.modelos.UsuariosGrupoDAO;
 import com.pasarceti.chat.servidor.modelos.dto.DTOAbandonarGrupo;
 import com.pasarceti.chat.servidor.modelos.dto.DTOCambioPassword;
 import com.pasarceti.chat.servidor.modelos.dto.DTOContacto;
@@ -23,6 +36,8 @@ import com.pasarceti.chat.servidor.modelos.dto.DTOMensaje;
 import com.pasarceti.chat.servidor.modelos.dto.DTONuevoMensaje;
 import com.pasarceti.chat.servidor.modelos.dto.DTONuevoGrupo;
 import com.pasarceti.chat.servidor.modelos.dto.DTOUsuario;
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Permite a los clientes realizar acciones con el chat, que producen un resultado.
@@ -51,11 +66,23 @@ public class ControladorChat
     private final ThreadLocal<Integer> idUsuario;
     
     private final Gson gson = new Gson();
+    
+    private final UsuarioDAO usuarioDAO;
+    private final MensajeDAO mensajeDAO;
+    private final GrupoDAO grupoDAO;
+    private final InvitacionDAO invitacionDAO;
+    private final UsuariosGrupoDAO usuariosGrupoDAO;
 
     public ControladorChat(EstadoServidor estadoServidor, ThreadLocal<Integer> idUsuario)
     {
         this.estadoServidor = estadoServidor;
         this.idUsuario = idUsuario;
+        
+        usuarioDAO = new UsuarioDAO();
+        mensajeDAO = new MensajeDAO();
+        grupoDAO = new GrupoDAO();
+        invitacionDAO = new InvitacionDAO();
+        usuariosGrupoDAO = new UsuariosGrupoDAO();
     }
 
     /**
@@ -106,44 +133,52 @@ public class ControladorChat
 
     private EventoServidor registrarUsuario(String json)
     {
+        EventoServidor resultado = new EventoServidor(
+            TipoDeEvento.ERROR_SERVIDOR,
+            idUsuario.get(),
+            ""
+        );
+        
         try 
         {
             DTOCredUsuario datosRegistro = gson.fromJson(json, DTOCredUsuario.class);
 
-            //TODO: Revisar si un usuario con el mismo nombre aún no existe en la BD.
-            boolean usuarioNoExiste = true;
+            // Revisar si todavía no existe un usuario con el mismo nombre.
+            Usuario usuario = usuarioDAO.busqueda_porNombre(datosRegistro.getNombreUsuario());
+            
+            boolean usuarioNoExiste = usuario == null;
 
             if (usuarioNoExiste) 
             {
                 // El usuario no ha sido creado, registrar un nuevo usuario.
-                //TODO: Crear usuario en BD.
-                int idNuevoUsuario = 0;
+                int idNuevoUsuario = usuarioDAO.crear(new Usuario(
+                    datosRegistro.getNombreUsuario(),
+                    datosRegistro.getPassword()
+                ));
 
                 // Usuario creado, registro exitoso.
-                return new EventoServidor(
-                    TipoDeEvento.RESULTADO_OK,
-                    idNuevoUsuario,
-                    "El usuario fue registrado con éxito."
-                );
+                resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                resultado.setIdUsuarioCliente(idNuevoUsuario);
 
             } else {
                 // Ya existe un usuario con este nombre de usuario, retornar error.
-                return new EventoServidor(
-                    TipoDeEvento.ERROR_CLIENTE, 
-                     -1,
-                    ERR_USR_EXISTE + " " + datosRegistro.getNombreUsuario()
-                );
+                String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_EXISTE + " " + datosRegistro.getNombreUsuario()));
+                
+                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.setCuerpoJSON(jsonErr);
             }
 
         } 
         catch (JsonSyntaxException e)
         {
-            return new EventoServidor(TipoDeEvento.ERROR_CLIENTE, -1, ERR_FORMATO_JSON);
+            // El cuerpo de la acción del cliente no está bien formado.
+            String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
+            
+            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.setCuerpoJSON(jsonErr);
         }
-        catch (Exception e) 
-        {
-            return new EventoServidor(TipoDeEvento.ERROR_SERVIDOR, -1, ERR_GENERAL);
-        }
+        
+        return resultado;
     }
 
     public EventoServidor iniciarSesion(final Socket cliente, String json) 
@@ -159,16 +194,13 @@ public class ControladorChat
         {
             DTOCredUsuario credenciales = gson.fromJson(json, DTOCredUsuario.class);
 
-            //TODO: Revisar si ya existe el usuario en la BD.
-            boolean usuarioExiste = true;
-
-            if (usuarioExiste) 
+            // Revisar si ya existe el usuario en la BD.
+            Usuario usuario = usuarioDAO.busqueda_porNombre(credenciales.getNombreUsuario());
+            
+            if (usuario != null && usuario.getPassword() != null) 
             {
                 // El usuario ya ha sido creado, comparar las contraseñas.
-                //TODO: Comparar con la contraseña real, cifrada.
-                String passDelUsuario = "holamundo";
-
-                boolean passCoinciden = passDelUsuario.equals(credenciales.getPassword());
+                boolean passCoinciden = usuario.getPassword().equals(credenciales.getPassword());
 
                 if (passCoinciden)
                 {
@@ -199,16 +231,20 @@ public class ControladorChat
 
             } else {
                 // El usuario ya existe, retornar error.
+                String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_NO_EXISTE + " " + credenciales.getNombreUsuario()));
+                
                 resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(ERR_USR_NO_EXISTE + " " + credenciales.getNombreUsuario());
+                resultado.setCuerpoJSON(jsonErr);
             }
 
         } 
         catch (JsonSyntaxException e)
         {
             // El cuerpo de la acción del cliente no está bien formado.
+            String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
+            
             resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-            resultado.setCuerpoJSON(ERR_FORMATO_JSON);
+            resultado.setCuerpoJSON(jsonErr);
         }
         
         return resultado;
@@ -216,9 +252,6 @@ public class ControladorChat
 
     public EventoServidor cerrarSesion() 
     {
-        //TODO: Obtener datos del usuario, asegurar que existe en lista de usuarios conectados. 
-        String nombreUsrExistente = "usuarioTemporal";
-
         // Actualizar estado con la desconexión del usuario actual.
         estadoServidor.desconectarUsuario(idUsuario);
         
@@ -226,44 +259,55 @@ public class ControladorChat
         return new EventoServidor(
             TipoDeEvento.RESULTADO_OK,
             -1,
-            "El Usuario \"" + nombreUsrExistente + "\" cerró sesión"
+            ""
         );
     }
 
     public EventoServidor recuperarPassword(String json) 
     {
+        EventoServidor resultado = new EventoServidor(
+            TipoDeEvento.ERROR_SERVIDOR,
+            idUsuario.get(),
+            ""
+        );
+        
         try 
         {
             DTOCambioPassword solicitudCambio = gson.fromJson(json, DTOCambioPassword.class);
 
-            //TODO: Asegurar que el usuario ya existe en la BD
-            boolean usuarioYaExiste = true;
-
-            if (usuarioYaExiste) 
+            // Asegurar que el usuario ya existe en la BD
+            Usuario usuario = usuarioDAO.busqueda_porId(solicitudCambio.getIdUsuario());
+            
+            // Revisar si el usuario existe.
+            if (usuario != null) 
             {
-                //TODO: Actualizar registro de usuario con nueva contraseña en BD.
+                // Actualizar registro de usuario con nueva contraseña en BD.
+                usuario.setPassword(solicitudCambio.getNuevaPassword());
+                
+                usuarioDAO.actualizar(usuario);
 
                 // Usuario creado, registro exitoso.
-                return new EventoServidor(
-                    TipoDeEvento.RESULTADO_OK,
-                    idUsuario.get(),
-                    "El usuario cambió su cuenta con éxito."
-                );
+                resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
 
             } else {
-                // El usuario ya existe, retornar error.
-                return new EventoServidor(
-                    TipoDeEvento.ERROR_CLIENTE, 
-                    idUsuario.get(),
-                    ERR_USR_NO_EXISTE
-                );
+                // El usuario no existe, retornar error.
+                String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_NO_EXISTE));
+                
+                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.setCuerpoJSON(jsonErr);
             }
 
         } 
         catch (JsonSyntaxException e)
         {
-            return new EventoServidor(TipoDeEvento.ERROR_CLIENTE, idUsuario.get(), ERR_FORMATO_JSON);
+            // El cuerpo de la acción del cliente no está bien formado.
+            String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
+            
+            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.setCuerpoJSON(jsonErr);
         }
+        
+        return resultado;
     }
     
     public EventoServidor obtenerMensajes(String json) 
@@ -279,36 +323,78 @@ public class ControladorChat
         {
             DTOContacto contactoDeMensajes = gson.fromJson(json, DTOContacto.class);
             
-            boolean contactoExiste = true;
-            
             if (contactoDeMensajes.getTipoDestinatario() == TipoDestinatario.GRUPO)
             {
-                final DTOGrupo grupoContacto = new DTOGrupo(0, "Grupo de prueba", new ArrayList<>());
-                
-                contactoExiste = grupoContacto != null;
+                Grupo grupo = grupoDAO.buscar_porId(contactoDeMensajes.getIdDestinatario());
+                 
+                if (grupo != null)
+                {
+                    // Obtener mensajes enviados al contacto.
+                    List<Mensaje> mensajesGrupo = mensajeDAO.busqueda_porGrupo(grupo);
+                    List<DTOMensaje> mensajes = new ArrayList<>();
+                    
+                    mensajesGrupo.forEach((mensaje) -> {
+                        mensajes.add(new DTOMensaje(
+                            mensaje.getId(),
+                            mensaje.getContenido(),
+                            mensaje.getFecha(),
+                            TipoDestinatario.GRUPO.ordinal(),
+                            mensaje.getId_dest_grupo(),
+                            mensaje.getId_autor()
+                        ));
+                    });
+                    
+                    DTOListaMensajes listaMensajes = new DTOListaMensajes(mensajes);
+
+                    // Enviar lista de mensajes.
+                    String jsonResultado = gson.toJson(listaMensajes);
+
+                    resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                    resultado.setCuerpoJSON(jsonResultado);
+                }
+                else 
+                {
+                    // El contacto no existe.
+                    resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                    resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
+                }
             }
             else 
             {
-                final DTOUsuario usuarioContacto = new DTOUsuario(0, "Usuario");
+                final UsuarioDAO usuarioDAO = new UsuarioDAO();
+                Usuario usuario = usuarioDAO.busqueda_porId(contactoDeMensajes.getIdDestinatario());
                 
-                contactoExiste = usuarioContacto != null;
-            }
+                if (usuario != null)
+                {
+                    // Obtener mensajes enviados al contacto.
+                    List<Mensaje> mensajesUsuario = mensajeDAO.busqueda_DestUsuario(usuario);
+                    List<DTOMensaje> mensajes = new ArrayList<>();
+                    
+                    mensajesUsuario.forEach((mensaje) -> {
+                        mensajes.add(new DTOMensaje(
+                            mensaje.getId(),
+                            mensaje.getContenido(),
+                            mensaje.getFecha(),
+                            TipoDestinatario.GRUPO.ordinal(),
+                            mensaje.getId_dest_grupo(),
+                            mensaje.getId_autor()
+                        ));
+                    });
+                    
+                    DTOListaMensajes listaMensajes = new DTOListaMensajes(mensajes);
 
-            if (contactoExiste) 
-            {
-                //TODO: Obtener mensajes del contacto.
-                DTOListaMensajes mensajes = new DTOListaMensajes(new ArrayList<>());
+                    // Enviar lista de mensajes.
+                    String jsonResultado = gson.toJson(listaMensajes);
 
-                // Enviar lista de mensajes.
-                String jsonResultado = gson.toJson(mensajes);
-
-                resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                resultado.setCuerpoJSON(jsonResultado);
-
-            } else {
-                // El contacto no existe.
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
+                    resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                    resultado.setCuerpoJSON(jsonResultado);
+                }
+                else 
+                {
+                    // El contacto no existe.
+                    resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                    resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
+                }
             }
         } 
         catch (JsonSyntaxException e)
@@ -323,89 +409,150 @@ public class ControladorChat
 
     public EventoServidor enviarMensaje(String json) 
     {
+        EventoServidor resultado = new EventoServidor(
+            TipoDeEvento.ERROR_SERVIDOR,
+            idUsuario.get(),
+            ""
+        );
+        
         try 
         {
-            DTONuevoMensaje mensaje = gson.fromJson(json, DTONuevoMensaje.class);
+            DTONuevoMensaje nuevoMensaje = gson.fromJson(json, DTONuevoMensaje.class);
+            
+            Mensaje mensaje = new Mensaje(
+                nuevoMensaje.getContenido(), 
+                idUsuario.get(), 
+                nuevoMensaje.getIdDestinatario(), 
+                nuevoMensaje.getIdDestinatario()
+            );
 
             //TODO: Revisar si existe el usuario autor y el destinatario en BD.
-            boolean usuarioExiste = true;
-            boolean destinatarioExiste = true;
+            Usuario autorMensaje = usuarioDAO.busqueda_porId(idUsuario.get());
 
-            if (usuarioExiste) 
-            {
-                if (destinatarioExiste)
+            if (autorMensaje != null) 
+            {                
+                if (nuevoMensaje.getTipoDestinatario() == TipoDestinatario.GRUPO)
                 {
-                    //TODO: Registrar nuevo mensaje en BD.
-                    int idMensajeCreado = 0;
-                    DTOMensaje mensajeEnviado = new DTOMensaje(
-                        idMensajeCreado,
-                        mensaje.getContenido(),
-                        mensaje.getTipoDestinatario().ordinal(),
-                        mensaje.getIdDestinatario(),
-                        idUsuario.get()
-                    );
+                    Usuario destinatario = usuarioDAO.busqueda_porId(nuevoMensaje.getIdDestinatario());
                     
-                    // Notificar a destinatarios, enviarles el mensaje.
-                    estadoServidor.enviarMensaje(mensajeEnviado);
+                    if (destinatario != null)
+                    {
+                        // Registrar nuevo mensaje en BD.
+                        int idMensajeCreado = mensajeDAO.crear_paraUsuario(mensaje);
 
-                    // El mensaje fue enviado.
-                    return new EventoServidor(
-                        TipoDeEvento.RESULTADO_OK,
-                        idUsuario.get(),
-                        gson.toJson(mensaje)
-                    );
-                } else {
-                    // El destinatario del mensaje no existe.
-                    return new EventoServidor(
-                        TipoDeEvento.ERROR_CLIENTE, 
-                        idUsuario.get(),
-                        ERR_DEST_NO_EXISTE
-                    );
+                        DTOMensaje mensajeEnviado = new DTOMensaje(
+                            idMensajeCreado,
+                            nuevoMensaje.getContenido(),
+                            nuevoMensaje.getTipoDestinatario().ordinal(),
+                            nuevoMensaje.getIdDestinatario(),
+                            idUsuario.get()
+                        );
+
+                        // Notificar a destinatarios, enviarles el mensaje.
+                        estadoServidor.enviarMensaje(mensajeEnviado);
+                        
+                        String jsonMensaje = gson.toJson(mensajeEnviado);
+
+                        // El mensaje fue enviado.
+                        resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                        resultado.setCuerpoJSON(jsonMensaje);
+                    } else {
+                        // El destinatario del mensaje no existe.
+                        String jsonErr = gson.toJson(new ErrorEvento(ERR_DEST_NO_EXISTE));
+                
+                        resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                        resultado.setCuerpoJSON(jsonErr);
+                    }
                 }
+                else 
+                {
+                    Usuario destinatario = usuarioDAO.busqueda_porId(nuevoMensaje.getIdDestinatario());
+                    
+                    if (destinatario != null)
+                    {
+                        // Registrar nuevo mensaje en BD.
+                        int idMensajeCreado = mensajeDAO.crear_paraUsuario(mensaje);
 
+                        DTOMensaje mensajeEnviado = new DTOMensaje(
+                            idMensajeCreado,
+                            nuevoMensaje.getContenido(),
+                            nuevoMensaje.getTipoDestinatario().ordinal(),
+                            nuevoMensaje.getIdDestinatario(),
+                            idUsuario.get()
+                        );
+
+                        // Notificar a destinatarios, enviarles el mensaje.
+                        estadoServidor.enviarMensaje(mensajeEnviado);
+                        
+                        String jsonMensaje = gson.toJson(mensajeEnviado);
+
+                        // El mensaje fue enviado.
+                        resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                        resultado.setCuerpoJSON(jsonMensaje);
+                    } else {
+                        // El destinatario del mensaje no existe.
+                        String jsonErr = gson.toJson(new ErrorEvento(ERR_DEST_NO_EXISTE));
+                
+                        resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                        resultado.setCuerpoJSON(jsonErr);
+                    }
+                }
             } else {
                 // El usuario no existe, retornar error.
-                return new EventoServidor(
-                    TipoDeEvento.ERROR_CLIENTE, 
-                    idUsuario.get(),
-                    ERR_USR_NO_EXISTE
-                );
+                String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_NO_EXISTE));
+                
+                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.setCuerpoJSON(jsonErr);
             }
 
         } 
         catch (JsonSyntaxException e)
         {
-            return new EventoServidor(TipoDeEvento.ERROR_CLIENTE, idUsuario.get(), ERR_FORMATO_JSON);
+            // El cuerpo de la acción del cliente no está bien formado.
+            String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
+            
+            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.setCuerpoJSON(jsonErr);
         }
+        
+        return resultado;
     }
 
    public EventoServidor enviarInvitacion(String json) 
     {
         try 
         {
-            DTOInvitacion invitacion = gson.fromJson(json, DTOInvitacion.class);
+            DTOInvitacion dtoInvitacion = gson.fromJson(json, DTOInvitacion.class);
 
-            //TODO: Revisar si existen el usuario invitado y el grupo.
-            boolean usuarioInvExiste = true;
-            
+            // Revisar si existen el usuario invitado y el grupo.
+            Usuario usuarioQueInvita = usuarioDAO.busqueda_porId(dtoInvitacion.getIdUsuarioQueInvita());
+                        
             // Un grupo es valido si la invitacion es de amistad, o si existe el grupo.
-            boolean grupoValido = (invitacion.esDeAmistad()) ? true : true;
+            boolean grupoValido = (dtoInvitacion.esDeAmistad()) ? true : true;
 
-            if (usuarioInvExiste && grupoValido) 
+            if (usuarioQueInvita != null && grupoValido) 
             {
-                //TODO: Crear invitacion en BD.
-                int idInvitacion = 1;
+                // Crear invitacion en BD.
+                Invitacion invitacion = new Invitacion(
+                    dtoInvitacion.getIdUsuarioInvitado(),
+                    dtoInvitacion.getIdGrupo(),
+                    dtoInvitacion.getIdUsuarioQueInvita()
+                );
                 
-                invitacion.setId(idInvitacion);
+                int idInvitacion = (dtoInvitacion.esDeAmistad()) 
+                        ? invitacionDAO.crear_paraAmistad(invitacion)
+                        : invitacionDAO.crear_paraGrupo(invitacion);
+                
+                dtoInvitacion.setId(idInvitacion);
                 
                 // Notificar sobre la nueva invitación.
-                estadoServidor.enviarInvitacion(invitacion);
+                estadoServidor.enviarInvitacion(dtoInvitacion);
 
                 // Invitacion creada.
                 return new EventoServidor(
                     TipoDeEvento.RESULTADO_OK,
                     idUsuario.get(),
-                    gson.toJson(invitacion)
+                    gson.toJson(dtoInvitacion)
                 );
 
             } else {
@@ -437,58 +584,86 @@ public class ControladorChat
         {
             DTOIdEntidad idInvitacion = gson.fromJson(json, DTOIdEntidad.class);
 
-            //TODO: Intentar obtener la invitación con idInvitacion desde la BD.
-            DTOInvitacion invitacion = new DTOInvitacion(idInvitacion.getId(), idUsuario.get(), null);
-
-            //TODO: Intentar obtener el usuario que invitó desde la BD.
-            DTOUsuario usuarioQueAcepto = new DTOUsuario(2, "Juan");
+            // Intentar obtener la invitación con idInvitacion desde la BD.
+            Invitacion invitacion = invitacionDAO.busqueda_porId(idInvitacion.getId());
             
-            boolean existen = invitacion != null && usuarioQueAcepto != null;
-
-            if (existen) 
+            if (invitacion == null)
             {
-                boolean mismoUsuarioQueAcepta = usuarioQueAcepto.getIdUsuario() == invitacion.getIdUsuarioInvitado();
+                // La invitación no existe, no puede ser aceptada.
+                String jsonErr = gson.toJson(new ErrorEvento(ERR_INV_NO_EXISTE));
+                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.setCuerpoJSON(jsonErr);
+                
+                return resultado;
+            }
+            
+            // Intentar obtener el usuario que aceptó la invitación desde la BD.
+            Usuario usuarioQueAcepto = usuarioDAO.busqueda_porId(invitacion.getId_usuario_emisor());
+                        
+            if (usuarioQueAcepto == null)
+            {
+                // El usuario que intenta aceptar la invitación debe existir.
+                String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_EXISTE));
+                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.setCuerpoJSON(jsonErr);
+                
+                return resultado;
+            }
 
-                if (mismoUsuarioQueAcepta)
+            boolean mismoUsuarioQueAcepta = usuarioQueAcepto.getId() == invitacion.getId_usuario_invitado();
+
+            // Si la invitación y el usuario existen en BD, aceptar la invitación.
+            if (mismoUsuarioQueAcepta)
+            {
+                DTOInvitacion dtoInvitacion = DTOInvitacion.desdeModelo(invitacion);
+                
+                if (dtoInvitacion.esDeAmistad())
                 {
-                    // Si la invitación y el usuario existen en BD, aceptarla.
-                    if (invitacion.esDeAmistad())
-                    {
-                        //TODO: Crear en BD amistad entre usuario actual y el usuario que 
-                        // envio la invitacion.
-                    }
-                    else 
-                    {
-                        //TODO: Agregar en BD al usuario como miembro del grupo.
-                    }
-
-                    DTOInvAceptada invitacionAceptada = new DTOInvAceptada(
-                        invitacion,
-                        usuarioQueAcepto
+                    // Crear en BD amistad entre usuario actual y el usuario que 
+                    // envio la invitacion.
+                    Amistad amistad = new Amistad(
+                            dtoInvitacion.getIdUsuarioQueInvita(), 
+                            dtoInvitacion.getIdUsuarioInvitado()
                     );
-
-                    String jsonResultado = gson.toJson(invitacionAceptada);
-
-                    // Notificar al otro usuario sobre su nueva amistad, o al grupo
-                    // sobre su nuevo miembro.
-                    estadoServidor.invitacionAceptada(invitacionAceptada);
-
-                    //TODO: Eliminar invitacion aceptada de la BD. 
-
-                    resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                    resultado.setCuerpoJSON(jsonResultado);
+                    
+                    AmistadDAO amistadDAO = new AmistadDAO();
+                    amistadDAO.crear(amistad);
                 }
                 else 
                 {
-                    // El usuario invitado y el que está intentando aceptar la 
-                    // invitación no son el mismo.
-                    resultado.setTipoDeEvento(TipoDeEvento.ERROR_AUTENTICACION);
-                    resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
+                    // Agregar en BD al usuario como miembro del grupo.
+                    Grupo grupo = grupoDAO.buscar_porId(dtoInvitacion.getIdGrupo());
+                    
+                    UsuariosGrupo usuariosGrupo = new UsuariosGrupo(
+                        dtoInvitacion.getIdUsuarioInvitado(),
+                        grupo.getId()
+                    );
+                    
+                    usuariosGrupoDAO.crear(usuariosGrupo);
                 }
 
-            } else {
-                // La invitación no existe, no puede ser aceptada.
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                DTOInvAceptada invitacionAceptada = new DTOInvAceptada(
+                    dtoInvitacion,
+                    DTOUsuario.desdeModelo(usuarioQueAcepto)
+                );
+
+                String jsonResultado = gson.toJson(invitacionAceptada);
+
+                // Notificar al otro usuario sobre su nueva amistad, o al grupo
+                // sobre su nuevo miembro.
+                estadoServidor.invitacionAceptada(invitacionAceptada);
+
+                // Eliminar invitacion aceptada de la BD. 
+                invitacionDAO.eliminar(invitacion);
+                
+                resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                resultado.setCuerpoJSON(jsonResultado);
+            }
+            else 
+            {
+                // El usuario invitado y el que está intentando aceptar la 
+                // invitación no son el mismo.
+                resultado.setTipoDeEvento(TipoDeEvento.ERROR_AUTENTICACION);
                 resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
             }
         } 
@@ -515,15 +690,18 @@ public class ControladorChat
         {
             DTOIdEntidad idInvitacion = gson.fromJson(json, DTOIdEntidad.class);
 
-            //TODO: Intentar obtener la invitación con idInvitacion desde la BD.
-            DTOInvitacion invitacionRechazada = new DTOInvitacion(idInvitacion.getId(), idUsuario.get(), null);
-
+            // Intentar obtener la invitación con idInvitacion desde la BD.
+            Invitacion invitacionRechazada = invitacionDAO.busqueda_porId(idInvitacion.getId());
+            
             if (invitacionRechazada != null) 
             {                
-                //TODO: Enviar notificacion de invitacion rechazada.
-                estadoServidor.invitacionRechazada(invitacionRechazada);
+                DTOInvitacion dtoInvitacion = DTOInvitacion.desdeModelo(invitacionRechazada);
                 
-                //TODO: Eliminar invitacion rechazada. 
+                // Enviar notificacion de invitacion rechazada.
+                estadoServidor.invitacionRechazada(dtoInvitacion);
+                
+                // Eliminar invitacion rechazada. 
+                invitacionDAO.eliminar(invitacionRechazada);
                 
                 // Enviar confirmacion de id de la invitacion rechazada al cliente.
                 String jsonResultado = gson.toJson(idInvitacion);
@@ -562,17 +740,32 @@ public class ControladorChat
 
             if (nuevoGrupo.getIdsUsuariosMiembro().size() >= 2) 
             {
-                //TODO: Revisar que todos los miembros iniciales existan.
+                //TODO Revisar que todos los miembros iniciales existan.
                 boolean miembrosExisten = true;
+                
+                for (Integer idNuevoMiembro : nuevoGrupo.getIdsUsuariosMiembro())
+                {
+                    Usuario miembro = usuarioDAO.busqueda_porId(idNuevoMiembro);
+                    miembrosExisten = (miembro != null);
+                }
 
                 if (miembrosExisten)
                 {
-                    //TODO: Crear nuevo grupo.
-                    int idNuevoGrupo = 0;
+                    // Crear nuevo grupo.
+                    Grupo grupo = new Grupo(nuevoGrupo.getNombre());
                     
-                    // Enviar invitacion a miembros iniciales.
+                    int idNuevoGrupo = grupoDAO.crear(grupo);
+                    
+                    UsuariosGrupoDAO usuariosGrupo = new UsuariosGrupoDAO();
+                    
+                    // Crear relaciones y enviar invitacion a miembros iniciales.
                     for (int idMiembro : nuevoGrupo.getIdsUsuariosMiembro())
                     {
+                        usuariosGrupo.crear(new UsuariosGrupo(
+                            idMiembro,
+                            idNuevoGrupo
+                        ));
+                        
                         DTOInvitacion invitacion = new DTOInvitacion(idUsuario.get(), idMiembro, idNuevoGrupo);
                         estadoServidor.enviarInvitacion(invitacion);
                     }
@@ -619,34 +812,53 @@ public class ControladorChat
         {
             DTOIdEntidad idGrupoAbandonado = gson.fromJson(json, DTOIdEntidad.class);
 
-            //TODO: Revisar si existe el grupo y si el usuario es miembro.
-            DTOGrupo grupo = new DTOGrupo(idGrupoAbandonado.getId(), "Grupo de prueba", new ArrayList<>());
-            boolean usuarioEsMiembro = true;
+            // Revisar si existe el grupo y si el usuario es miembro.
+            Grupo grupo = grupoDAO.buscar_porId(idGrupoAbandonado.getId());
 
-            if (grupo != null && usuarioEsMiembro) 
+            if (grupo != null) 
             {
-                //TODO: Eliminar usuario del grupo.
+                List<UsuariosGrupo> usuariosEnGrupo = usuariosGrupoDAO.busqueda_porGrupo(grupo.getId());
                 
-                // Enviar notificación de usuario abandono grupo.
-                estadoServidor.usuarioAbandono(new DTOAbandonarGrupo(idUsuario.get(), grupo));
+                UsuariosGrupo usuarioMiembro = null;
                 
-                //TODO: Eliminar grupo, si tiene menos de 3 miembros.
-                if (grupo.getIdsUsuariosMiembro().size() < 3)
+                for (UsuariosGrupo usuarioEnGrupo : usuariosEnGrupo)
                 {
-                    // Enviar notificación de grupo eliminado.
-                    estadoServidor.grupoEliminado(grupo.getId());
+                    if (usuarioEnGrupo.getId_usuario_miembro() == idUsuario.get())
+                    {
+                        usuarioMiembro = usuarioEnGrupo;
+                        break;
+                    }
                 }
+                
+                if (usuarioMiembro != null)
+                {
+                    // Eliminar usuario del grupo.
+                    usuariosGrupoDAO.eliminar(usuarioMiembro);
+                    
+                    DTOGrupo dtoGrupo = new DTOGrupo(grupo.getId(), grupo.getNombre(), new ArrayList<>());
 
-                // Enviar confirmacion con datos del grupo abandonado al cliente.
-                String jsonResultado = gson.toJson(idGrupoAbandonado);
+                    // Enviar notificación de usuario abandono grupo.
+                    estadoServidor.usuarioAbandono(new DTOAbandonarGrupo(idUsuario.get(), dtoGrupo));
 
-                resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                resultado.setCuerpoJSON(jsonResultado);
+                    // Eliminar grupo, si tiene menos de 3 miembros.
+                    if (usuariosEnGrupo.size() < 3)
+                    {
+                        grupoDAO.eliminar(grupo);
+                        
+                        // Enviar notificación de grupo eliminado.
+                        estadoServidor.grupoEliminado(grupo.getId());
+                    }
 
-            } else if (!usuarioEsMiembro) {
-                // El usuario no es miembro del grupo, no lo puede abandonar.
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(ERR_GRUPO_USR_NO_ES_MIEMBRO);
+                    // Enviar confirmacion con datos del grupo abandonado al cliente.
+                    String jsonResultado = gson.toJson(idGrupoAbandonado);
+
+                    resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                    resultado.setCuerpoJSON(jsonResultado);
+                } else {
+                    // El usuario no es miembro del grupo, no lo puede abandonar.
+                    resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                    resultado.setCuerpoJSON(ERR_GRUPO_USR_NO_ES_MIEMBRO);
+                }
             } else {
                 // El grupo no existe.
                 resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);

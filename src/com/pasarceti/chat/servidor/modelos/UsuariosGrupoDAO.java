@@ -28,15 +28,20 @@ public class UsuariosGrupoDAO extends ControladorBD {
             Logger.getLogger(UsuariosGrupoDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-
+    
     // Buscar una lista de relacion usuarios-grupo de un dado USUARIO
     public List<UsuariosGrupo> busqueda_porUsuario(Usuario usuario) {
+        return busqueda_porIdUsuario(usuario.getId());
+    }
+
+    // Buscar una lista de relacion usuarios-grupo de un dado USUARIO con un ID
+    public List<UsuariosGrupo> busqueda_porIdUsuario(int idUsuario) {
         PreparedStatement ps;
         ResultSet res;
         List<UsuariosGrupo> ugs = new ArrayList<>();
         try {
             ps = getC().prepareStatement("SELECT * from usuariosgrupo WHERE id_usuario_miembro = ?");
-            ps.setInt(1, usuario.getId());
+            ps.setInt(1, idUsuario);
             res = ps.executeQuery();
             while (res.next()) {
                 UsuariosGrupo ug = new UsuariosGrupo();
@@ -49,15 +54,20 @@ public class UsuariosGrupoDAO extends ControladorBD {
         }
         return ugs;
     }
-
+    
     // Buscar una lista de relacion usuarios-grupo de un dado GRUPO
     public List<UsuariosGrupo> busqueda_porGrupo(Grupo grupo) {
+        return busqueda_porGrupo(grupo.getId());
+    }
+
+    // Buscar una lista de relacion usuarios-grupo de un dado ID de GRUPO
+    public List<UsuariosGrupo> busqueda_porGrupo(int idGrupo) {
         PreparedStatement ps;
         ResultSet res;
         List<UsuariosGrupo> ugs = new ArrayList<>();
         try {
             ps = getC().prepareStatement("SELECT * from usuariosgrupo WHERE id_grupo = ?");
-            ps.setInt(1, grupo.getId());
+            ps.setInt(1, idGrupo);
             res = ps.executeQuery();
             while (res.next()) {
                 UsuariosGrupo ug = new UsuariosGrupo();

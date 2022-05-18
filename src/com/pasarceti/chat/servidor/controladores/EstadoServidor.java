@@ -53,9 +53,6 @@ public class EstadoServidor
     {
         // Inicializar todas las listas de entidades para cada uno de
         // los usuarios del sistema.
-        
-        // PROBLEMA: Esto solo maneja los usuarios existentes cuando se inicia
-        // el servidor, no los nuevos usuarios registrados mientras se ejecuta.
         usuarios.forEach(usuario -> {
             invitaciones.putIfAbsent(usuario.getIdUsuario(), new ArrayList<>());
             mensajesEnviados.putIfAbsent(usuario.getIdUsuario(), new ArrayList<>());
@@ -116,6 +113,9 @@ public class EstadoServidor
     {
         clientesConectados.putIfAbsent(cliente.getId(), cliente);
         
+        invitaciones.putIfAbsent(cliente.getId(), new ArrayList<>());
+        mensajesEnviados.putIfAbsent(cliente.getId(), new ArrayList<>());
+        
         DTOUsuario usuario = getUsuarioPorId(cliente.getId());
 
         soporteCambios.fireIndexedPropertyChange(
@@ -152,6 +152,9 @@ public class EstadoServidor
     {
         int viejoIdUsuario = idUsuario.get();
         Cliente clientePrevio = clientesConectados.remove(viejoIdUsuario);
+        
+        invitaciones.putIfAbsent(idUsuario.get(), new ArrayList<>());
+        mensajesEnviados.putIfAbsent(idUsuario.get(), new ArrayList<>());
 
         if (clientePrevio != null) 
         {

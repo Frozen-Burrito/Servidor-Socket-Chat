@@ -6,8 +6,6 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.net.Socket;
-import java.util.AbstractMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import com.pasarceti.chat.servidor.modelos.Evento;
