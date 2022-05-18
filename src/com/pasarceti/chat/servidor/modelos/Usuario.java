@@ -61,7 +61,7 @@ public class Usuario {
 
     public List<UsuariosGrupo> getGrupos() {
         UsuariosGrupoDAO grupo = new UsuariosGrupoDAO();
-        grupos = grupo.busqueda_porUsuario(id);
+        grupos = grupo.busqueda_porUsuario(this);
         return grupos;
     }
 

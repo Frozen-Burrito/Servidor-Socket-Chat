@@ -16,33 +16,43 @@ public class GrupoDAO extends ControladorBD {
     }
 
     // Añadir Grupo
-    public void crear(Grupo grupo) {
+    public int crear(Grupo grupo) {
         PreparedStatement ps;
         try {
             ps = getC().prepareStatement("INSERT INTO grupo VALUES(?,?)");
             ps.setInt(1, grupo.getId());
             ps.setString(2, grupo.getNombre());
             ps.executeUpdate();
+            
+            ResultSet resultados = ps.getGeneratedKeys();
+            
+            if (resultados.next())
+            {
+                return resultados.getInt(1);
+            }
+            
         } catch (SQLException ex) {
             Logger.getLogger(GrupoDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
+        
+        return -1;
     }
 
     // Buscar un grupo por Id
     public Grupo buscar_porId(int id) {
         PreparedStatement ps;
         ResultSet res;
-        Grupo grupo = new Grupo();
+        Grupo grupo = null;
         try {
             ps = getC().prepareStatement("SELECT * from grupo WHERE id = ?");
             ps.setInt(1, id);
             res = ps.executeQuery();
             if (res.next()) {
+                grupo = new Grupo();
                 grupo.setId(res.getInt("id"));
                 grupo.setNombre(res.getString("nombre"));
             }
         } catch (SQLException ex) {
-            grupo = null;
             Logger.getLogger(GrupoDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
         return grupo;
@@ -52,17 +62,17 @@ public class GrupoDAO extends ControladorBD {
     public Grupo buscar_porNombre(String nombre) {
         PreparedStatement ps;
         ResultSet res;
-        Grupo grupo = new Grupo();
+        Grupo grupo = null;
         try {
             ps = getC().prepareStatement("SELECT * from grupo WHERE nombre = ?");
             ps.setString(1, nombre);
             res = ps.executeQuery();
             if (res.next()) {
+                grupo = new Grupo();
                 grupo.setId(res.getInt("id"));
                 grupo.setNombre(res.getString("nombre"));
             }
         } catch (SQLException ex) {
-            grupo = null;
             Logger.getLogger(GrupoDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
         return grupo;

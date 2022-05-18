@@ -4,6 +4,7 @@ import com.pasarceti.chat.servidor.bd.ControladorBD;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -16,29 +17,49 @@ public class InvitacionDAO extends ControladorBD {
     }
 
     // Crear invitación para entablar amistad
-    public void crear_paraAmistad(Invitacion invitacion) {
+    public int crear_paraAmistad(Invitacion invitacion) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("INSERT INTO invitacion (id_usuario_invitado, id_usuario_emisor) VALUES(?,?)");
+            String query = "INSERT INTO invitacion (id_usuario_invitado, id_usuario_emisor) VALUES(?,?)";
+            ps = getC().prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
             ps.setInt(1, invitacion.getId_usuario_invitado());
             ps.setInt(2, invitacion.getId_usuario_emisor());
             ps.executeUpdate();
+            
+            ResultSet resultados = ps.getGeneratedKeys();
+            
+            if (resultados.next()) {
+                return resultados.getInt(1);
+            }
+            
         } catch (SQLException ex) {
             Logger.getLogger(InvitacionDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
+        
+        return -1;
     }
 
     // Crear invitación para grupo
-    public void crear_paraGrupo(Invitacion invitacion) {
+    public int crear_paraGrupo(Invitacion invitacion) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("INSERT INTO invitacion (id_usuario_invitado, id_grupo, id_usuario_emisor) VALUES(?,?)");
+            String query = "INSERT INTO invitacion (id_usuario_invitado, id_grupo, id_usuario_emisor) VALUES(?,?)";
+            ps = getC().prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
             ps.setInt(1, invitacion.getId_usuario_invitado());
             ps.setInt(2, invitacion.getId_grupo());
+            ps.setInt(3, invitacion.getId_usuario_emisor());
             ps.executeUpdate();
+            
+            ResultSet resultados = ps.getGeneratedKeys();
+            
+            if (resultados.next()) {
+                return resultados.getInt(1);
+            }
         } catch (SQLException ex) {
             Logger.getLogger(InvitacionDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
+        
+        return -1;
     }
 
     // Buscar una invitacion por id

@@ -1,18 +1,19 @@
 package com.pasarceti.chat.servidor.modelos;
 
 import java.sql.Date;
+import java.time.LocalDateTime;
 
 public class Mensaje {
 
     private String contenido;
     private int id, id_autor, id_dest_usuario, id_dest_grupo;
-    private Date fecha;
+    private LocalDateTime fecha;
 
     public Mensaje() {
     }
 
     // Constructor con todos los campos (incluyendo id)
-    public Mensaje(int id, String contenido, int id_autor, int id_dest_usuario, int id_dest_grupo, Date fecha) {
+    public Mensaje(int id, String contenido, int id_autor, int id_dest_usuario, int id_dest_grupo, LocalDateTime fecha) {
         this.contenido = contenido;
         this.id = id;
         this.id_autor = id_autor;
@@ -22,12 +23,12 @@ public class Mensaje {
     }
 
     // Constructor sin id
-    public Mensaje(String contenido, int id_autor, int id_dest_usuario, int id_dest_grupo, Date fecha) {
+    public Mensaje(String contenido, int id_autor, int id_dest_usuario, int id_dest_grupo) {
         this.contenido = contenido;
         this.id_autor = id_autor;
         this.id_dest_usuario = id_dest_usuario;
         this.id_dest_grupo = id_dest_grupo;
-        this.fecha = fecha;
+        this.fecha = LocalDateTime.now();
     }
 
     public String getContenido() {
@@ -70,11 +71,11 @@ public class Mensaje {
         this.id_dest_grupo = id_dest_grupo;
     }
 
-    public Date getFecha() {
+    public LocalDateTime getFecha() {
         return fecha;
     }
 
-    public void setFecha(Date fecha) {
+    public void setFecha(LocalDateTime fecha) {
         this.fecha = fecha;
     }
 }

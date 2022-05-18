@@ -1,5 +1,7 @@
 package com.pasarceti.chat.servidor.controladores;
 
+import com.pasarceti.chat.servidor.bd.ControladorBD;
+import com.pasarceti.chat.servidor.bd.CredencialesBD;
 import com.pasarceti.chat.servidor.modelos.Evento;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -46,13 +48,19 @@ public class ServidorChat implements Runnable
     private final BlockingQueue<Evento> queueEventos = new LinkedBlockingQueue<>(MAX_EVENTOS_EN_QUEUE);
     
     private final NotificadorDeEventos notificador;
+    
+    private final CredencialesBD credencialesBD;
 
-    public ServidorChat(int puerto, Level nivelDeLogs) 
+    public ServidorChat(int puerto, Level nivelDeLogs, CredencialesBD credenciales) 
     {
         this.puerto = puerto;
         logger.setLevel(nivelDeLogs);
         
         this.notificador = new NotificadorDeEventos(estado, queueEventos);
+        
+        this.credencialesBD = credenciales;
+        
+        ControladorBD.setCredenciales(this.credencialesBD);
     }
     
     @Override

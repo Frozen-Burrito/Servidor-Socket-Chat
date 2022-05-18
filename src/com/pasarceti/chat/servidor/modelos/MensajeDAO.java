@@ -1,9 +1,12 @@
 package com.pasarceti.chat.servidor.modelos;
 
 import com.pasarceti.chat.servidor.bd.ControladorBD;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -16,18 +19,31 @@ public class MensajeDAO extends ControladorBD {
     }
 
     // Crear mensaje para otro usuario
-    public void crear_paraUsuario(Mensaje mensaje) {
+    public int crear_paraUsuario(Mensaje mensaje) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("INSERT INTO mensaje (contenido, fecha, id_autor, id_dest_usuario) VALUES(?,?,?,?)");
+            String query = "INSERT INTO mensaje (contenido, fecha, id_autor, id_dest_usuario) VALUES(?,?,?,?)";
+            ps = getC().prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, mensaje.getContenido());
-            ps.setDate(2, mensaje.getFecha());
+            
+            Timestamp fecha = Timestamp.valueOf(mensaje.getFecha());
+            ps.setTimestamp(2, fecha);
+            
             ps.setInt(3, mensaje.getId_autor());
             ps.setInt(4, mensaje.getId_dest_usuario());
             ps.executeUpdate();
+            
+            ResultSet resultados = ps.getGeneratedKeys();
+            
+            if (resultados.next())
+            {
+                return resultados.getInt(1);
+            }
         } catch (SQLException ex) {
             Logger.getLogger(MensajeDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
+        
+        return -1;
     }
 
     // Crear mensaje para grupo
@@ -36,7 +52,10 @@ public class MensajeDAO extends ControladorBD {
         try {
             ps = getC().prepareStatement("INSERT INTO mensaje (contenido, fecha, id_autor, id_dest_grupo) VALUES(?,?,?,?)");
             ps.setString(1, mensaje.getContenido());
-            ps.setDate(2, mensaje.getFecha());
+            
+            Timestamp fecha = Timestamp.valueOf(mensaje.getFecha());
+            ps.setTimestamp(2, fecha);
+            
             ps.setInt(3, mensaje.getId_autor());
             ps.setInt(4, mensaje.getId_dest_grupo());
             ps.executeUpdate();
@@ -59,7 +78,11 @@ public class MensajeDAO extends ControladorBD {
                 Mensaje mensaje = new Mensaje();
                 mensaje.setId(res.getInt("id"));
                 mensaje.setContenido(res.getString("contenido"));
-                mensaje.setFecha(res.getDate("fecha"));
+                
+                Date fecha = res.getDate("fecha");
+                Timestamp t = new Timestamp(fecha.getTime());
+                mensaje.setFecha(t.toLocalDateTime());
+                
                 mensaje.setId_autor(res.getInt("id_autor"));
                 mensaje.setId_dest_grupo(res.getInt("id_dest_grupo"));
                 mensaje.setId_dest_usuario(res.getInt("id_dest_usuario"));
@@ -85,7 +108,11 @@ public class MensajeDAO extends ControladorBD {
                 Mensaje mensaje = new Mensaje();
                 mensaje.setId(res.getInt("id"));
                 mensaje.setContenido(res.getString("contenido"));
-                mensaje.setFecha(res.getDate("fecha"));
+                
+                Date fecha = res.getDate("fecha");
+                Timestamp t = new Timestamp(fecha.getTime());
+                mensaje.setFecha(t.toLocalDateTime());
+                
                 mensaje.setId_autor(res.getInt("id_autor"));
                 mensaje.setId_dest_grupo(res.getInt("id_dest_grupo"));
                 mensaje.setId_dest_usuario(res.getInt("id_dest_usuario"));
