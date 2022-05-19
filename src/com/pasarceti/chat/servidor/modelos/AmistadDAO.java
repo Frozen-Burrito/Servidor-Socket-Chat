@@ -1,8 +1,5 @@
 package com.pasarceti.chat.servidor.modelos;
 
-import com.pasarceti.chat.servidor.bd.ControladorBD;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.logging.Level;
@@ -12,17 +9,19 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AmistadDAO extends ControladorBD {
+public class AmistadDAO {
 
-    public AmistadDAO() {
-        super();
+    private final Connection conexionBD;
+    
+    public AmistadDAO(Connection conexionBD) {
+        this.conexionBD = conexionBD; 
     }
 
     // Añadir amistad
     public void crear(Amistad amistad) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("INSERT INTO amistad VALUES(?,?)");
+            ps = conexionBD.prepareStatement("INSERT INTO amistad VALUES(?,?)");
             ps.setInt(1, amistad.getId_usuario());
             ps.setInt(2, amistad.getId_otro_usuario());
             ps.executeUpdate();
@@ -38,7 +37,7 @@ public class AmistadDAO extends ControladorBD {
         ResultSet res;
         Amistad amistad = null;
         try {
-            ps = getC().prepareStatement("SELECT * from amistad WHERE id_usuario = ? AND id_otro_usuario = ?");
+            ps = conexionBD.prepareStatement("SELECT * from amistad WHERE id_usuario = ? AND id_otro_usuario = ?");
             ps.setInt(1, id_usuario);
             ps.setInt(2, id_otro_usuario);
             res = ps.executeQuery();
@@ -59,7 +58,7 @@ public class AmistadDAO extends ControladorBD {
         ResultSet res;
         List<Amistad> amistades = new ArrayList<>();
         try {
-            ps = getC().prepareStatement("SELECT * from amistad WHERE id_usuario = ?");
+            ps = conexionBD.prepareStatement("SELECT * from amistad WHERE id_usuario = ?");
 //            ps.setInt(1, usuario.getId());
             ps.setInt(1, id);
             res = ps.executeQuery();
@@ -80,12 +79,12 @@ public class AmistadDAO extends ControladorBD {
     public void eliminar(Amistad amistad) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("DELETE FROM amistad WHERE id_usuario = ? AND id_otro_usuario = ?");
+            ps = conexionBD.prepareStatement("DELETE FROM amistad WHERE id_usuario = ? AND id_otro_usuario = ?");
             ps.setInt(1, amistad.getId_usuario());
             ps.setInt(2, amistad.getId_otro_usuario());
             ps.executeUpdate();
             ps.close();
-        } catch (Exception ex) {
+        } catch (SQLException ex) {
             Logger.getLogger(AmistadDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
     }

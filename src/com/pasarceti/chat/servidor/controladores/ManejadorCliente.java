@@ -1,5 +1,6 @@
 package com.pasarceti.chat.servidor.controladores;
 
+import com.pasarceti.chat.servidor.bd.PoolConexionesBD;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -14,6 +15,8 @@ import com.pasarceti.chat.servidor.modelos.AccionCliente;
 import com.pasarceti.chat.servidor.modelos.Evento;
 import com.pasarceti.chat.servidor.modelos.EventoServidor;
 import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Arrays;
 
 /**
@@ -41,16 +44,26 @@ public class ManejadorCliente implements Runnable
             return -1;
         }
     };
+    
+    private final ThreadLocal<Connection> conexionBD = new ThreadLocal<>();
+    
+    private final PoolConexionesBD poolConexionesBD;
 
     // El queue para el patrón productor-consumidor (servidor y gui, en este caso)
     // que envía los eventos producidos por el servidor a los consumidores de este queue.
     private final BlockingQueue<Evento> queueEventos;
 
-    public ManejadorCliente(Socket socket, EstadoServidor estadoServidor, BlockingQueue<Evento> queueEventos) 
+    public ManejadorCliente(
+        Socket socket, 
+        EstadoServidor estadoServidor, 
+        BlockingQueue<Evento> queueEventos,
+        PoolConexionesBD poolConexionesBD
+    ) 
     {
         this.socket = socket;
         this.estadoServidor = estadoServidor;
         this.queueEventos = queueEventos;
+        this.poolConexionesBD = poolConexionesBD;
     }
 
     @Override
@@ -185,15 +198,37 @@ public class ManejadorCliente implements Runnable
 
     private EventoServidor realizarAccion(AccionCliente accionCliente) throws InterruptedException 
     {
-        ControladorChat controladorChat = new ControladorChat(estadoServidor, idUsuario);
+        try 
+        {
+            conexionBD.set(poolConexionesBD.getConexion());
+            
+            ControladorChat controladorChat = new ControladorChat(estadoServidor, idUsuario, conexionBD.get());
+            
+            // Regresar la conexion de BD usada.
+            poolConexionesBD.regresarConexion(conexionBD.get());
+            conexionBD.set(null);
 
-        EventoServidor resultado = controladorChat.ejecutarAccion(socket, accionCliente);
-
-        // Notificar con el evento resultante de la accion.
-        Evento evento = new Evento(resultado.getTipoDeEvento(), resultado.getCuerpoJSON());
-        queueEventos.offer(evento, BLOQUEO_MAX_EVT_MS, TimeUnit.MILLISECONDS);
-
-        return resultado;
+            EventoServidor resultado = controladorChat.ejecutarAccion(socket, accionCliente);
+            
+            // Notificar con el evento resultante de la accion.
+            Evento evento = new Evento(resultado.getTipoDeEvento(), resultado.getCuerpoJSON());
+            queueEventos.offer(evento, BLOQUEO_MAX_EVT_MS, TimeUnit.MILLISECONDS);
+            
+            return resultado;
+            
+        } catch (SQLException ex) 
+        {
+            EventoServidor resultadoErrSQL = new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR,
+                "El servidor no pudo conectarse a la base de datos."
+            );
+            
+            // Notificar con el evento resultante de la accion.
+            Evento evento = new Evento(resultadoErrSQL.getTipoDeEvento(), resultadoErrSQL.getCuerpoJSON());
+            queueEventos.offer(evento, BLOQUEO_MAX_EVT_MS, TimeUnit.MILLISECONDS);
+            
+            return resultadoErrSQL;
+        }
     }
 
     public static void enviarEventoASocket(Socket cliente, EventoServidor resultado) throws IOException 

@@ -1,7 +1,7 @@
 
 package com.pasarceti.chat.servidor.modelos;
 
-import com.pasarceti.chat.servidor.bd.ControladorBD;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -10,17 +10,19 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class UsuariosGrupoDAO extends ControladorBD {
+public class UsuariosGrupoDAO {
 
- public UsuariosGrupoDAO() {
-        super();
+    private final Connection conexionBD;
+    
+    public UsuariosGrupoDAO(Connection conexionBD) {        
+        this.conexionBD = conexionBD; 
     }
 
     // Añadir nueva relacion entre un usuario y un grupo
     public void crear(UsuariosGrupo usuarios_grupo) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("INSERT INTO usuariosgrupo VALUES(?,?)");
+            ps = conexionBD.prepareStatement("INSERT INTO usuariosgrupo VALUES(?,?)");
             ps.setInt(1, usuarios_grupo.getId_usuario_miembro());
             ps.setInt(2, usuarios_grupo.getId_grupo());
             ps.executeUpdate();
@@ -40,7 +42,7 @@ public class UsuariosGrupoDAO extends ControladorBD {
         ResultSet res;
         List<UsuariosGrupo> ugs = new ArrayList<>();
         try {
-            ps = getC().prepareStatement("SELECT * from usuariosgrupo WHERE id_usuario_miembro = ?");
+            ps = conexionBD.prepareStatement("SELECT * from usuariosgrupo WHERE id_usuario_miembro = ?");
             ps.setInt(1, idUsuario);
             res = ps.executeQuery();
             while (res.next()) {
@@ -66,7 +68,7 @@ public class UsuariosGrupoDAO extends ControladorBD {
         ResultSet res;
         List<UsuariosGrupo> ugs = new ArrayList<>();
         try {
-            ps = getC().prepareStatement("SELECT * from usuariosgrupo WHERE id_grupo = ?");
+            ps = conexionBD.prepareStatement("SELECT * from usuariosgrupo WHERE id_grupo = ?");
             ps.setInt(1, idGrupo);
             res = ps.executeQuery();
             while (res.next()) {
@@ -85,11 +87,11 @@ public class UsuariosGrupoDAO extends ControladorBD {
     public void eliminar(UsuariosGrupo ug) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("DELETE FROM usuariosgrupo WHERE id_grupo = ? AND id_usuario_miembro = ?");
+            ps = conexionBD.prepareStatement("DELETE FROM usuariosgrupo WHERE id_grupo = ? AND id_usuario_miembro = ?");
             ps.setInt(1, ug.getId_grupo());
             ps.setInt(2, ug.getId_usuario_miembro());
             ps.executeUpdate();
-        } catch (Exception ex) {
+        } catch (SQLException ex) {
             Logger.getLogger(AmistadDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
     }

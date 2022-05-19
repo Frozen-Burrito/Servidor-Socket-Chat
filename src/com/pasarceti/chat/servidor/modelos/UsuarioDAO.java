@@ -1,6 +1,6 @@
 package com.pasarceti.chat.servidor.modelos;
 
-import com.pasarceti.chat.servidor.bd.ControladorBD;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -8,10 +8,13 @@ import java.sql.Statement;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class UsuarioDAO extends ControladorBD {
+public class UsuarioDAO {
 
-    public UsuarioDAO() {
-        super();
+    private final Connection conexionBD;
+    
+    public UsuarioDAO(Connection conexionBD) {
+       
+        this.conexionBD = conexionBD; 
     }
 
     // Añadir un nuevo usuario
@@ -19,7 +22,7 @@ public class UsuarioDAO extends ControladorBD {
         PreparedStatement ps;
         try {
             String query = "INSERT INTO usuario (nombre_usuario, password) VALUES(?,?)";
-            ps = getC().prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+            ps = conexionBD.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, usuario.getNombre_usuario());
             ps.setString(2, usuario.getPassword());
             ps.executeUpdate();
@@ -44,7 +47,7 @@ public class UsuarioDAO extends ControladorBD {
         Usuario usuario = null;
         ResultSet res;
         try {
-            ps = getC().prepareStatement("SELECT * from usuario WHERE nombre_usuario = ? AND password = ?");
+            ps = conexionBD.prepareStatement("SELECT * from usuario WHERE nombre_usuario = ? AND password = ?");
             ps.setString(1, nombre_usuario);
             ps.setString(2, password);
             res = ps.executeQuery();
@@ -67,7 +70,7 @@ public class UsuarioDAO extends ControladorBD {
         Usuario usuario = null;
         ResultSet res;
         try {
-            ps = getC().prepareStatement("SELECT * from usuario WHERE id = ?");
+            ps = conexionBD.prepareStatement("SELECT * from usuario WHERE id = ?");
             ps.setInt(1, id_usuario);
             res = ps.executeQuery();
             if (res.next()) {
@@ -89,7 +92,7 @@ public class UsuarioDAO extends ControladorBD {
         ResultSet res;
         Usuario usuario = null;
         try {
-            ps = getC().prepareStatement("SELECT * from usuario WHERE nombre_usuario = ?");
+            ps = conexionBD.prepareStatement("SELECT * from usuario WHERE nombre_usuario = ?");
             ps.setString(1, nombre_usuario);
             res = ps.executeQuery();
             if (res.next()) {
@@ -109,7 +112,7 @@ public class UsuarioDAO extends ControladorBD {
     public void actualizar(Usuario usuario) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("UPDATE usuario SET password = ? WHERE id = ?");
+            ps = conexionBD.prepareStatement("UPDATE usuario SET password = ? WHERE id = ?");
             ps.setString(1, usuario.getPassword());
             ps.setInt(2, usuario.getId());
             ps.executeUpdate();
@@ -122,10 +125,10 @@ public class UsuarioDAO extends ControladorBD {
     public void eliminar(Usuario usuario) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("DELETE FROM usuario WHERE id = ?");
+            ps = conexionBD.prepareStatement("DELETE FROM usuario WHERE id = ?");
             ps.setInt(1, usuario.getId());
             ps.executeUpdate();
-        } catch (Exception ex) {
+        } catch (SQLException ex) {
             Logger.getLogger(UsuarioDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
     }

@@ -8,6 +8,7 @@ import com.google.gson.JsonSyntaxException;
 import org.apache.commons.codec.digest.DigestUtils;
 import com.pasarceti.chat.servidor.modelos.*;
 import com.pasarceti.chat.servidor.modelos.dto.*;
+import java.sql.Connection;
 
 /**
  * Permite a los clientes realizar acciones con el chat, que producen un resultado.
@@ -34,7 +35,7 @@ public class ControladorChat
     private final EstadoServidor estadoServidor;
     
     private final ThreadLocal<Integer> idUsuario;
-    
+        
     private final Gson gson = new Gson();
     
     private final UsuarioDAO usuarioDAO;
@@ -44,17 +45,17 @@ public class ControladorChat
     private final UsuariosGrupoDAO usuariosGrupoDAO;
     private final AmistadDAO amistadDAO;
 
-    public ControladorChat(EstadoServidor estadoServidor, ThreadLocal<Integer> idUsuario)
+    public ControladorChat(EstadoServidor estadoServidor, ThreadLocal<Integer> idUsuario, Connection conexionBD)
     {
         this.estadoServidor = estadoServidor;
         this.idUsuario = idUsuario;
         
-        usuarioDAO = new UsuarioDAO();
-        mensajeDAO = new MensajeDAO();
-        grupoDAO = new GrupoDAO();
-        invitacionDAO = new InvitacionDAO();
-        usuariosGrupoDAO = new UsuariosGrupoDAO();
-        amistadDAO = new AmistadDAO();
+        usuarioDAO = new UsuarioDAO(conexionBD);
+        mensajeDAO = new MensajeDAO(conexionBD);
+        grupoDAO = new GrupoDAO(conexionBD);
+        invitacionDAO = new InvitacionDAO(conexionBD);
+        usuariosGrupoDAO = new UsuariosGrupoDAO(conexionBD);
+        amistadDAO = new AmistadDAO(conexionBD);
     }
 
     /**
@@ -185,7 +186,14 @@ public class ControladorChat
                     estadoServidor.agregarCliente(new Cliente(idUsuarioDeBD, cliente));
                     
                     // Obtener datos del usuario (Amigos, grupos, invitaciones).
-                    DTOContactos listaDeContactos = estadoServidor.getContactosUsuario(usuario.getId());
+                    List<Amistad> amistades = amistadDAO.busqueda_porUsuario(usuario.getId());
+                    List<UsuariosGrupo> usuariosGrupo = usuariosGrupoDAO.busqueda_porIdUsuario(usuario.getId());
+
+                    DTOContactos listaDeContactos = estadoServidor.getContactosUsuario(
+                        usuario.getId(),
+                        amistades,
+                        usuariosGrupo
+                    );
 
                     String contactosJson = gson.toJson(listaDeContactos);
                     
@@ -723,13 +731,11 @@ public class ControladorChat
                     Grupo grupo = new Grupo(nuevoGrupo.getNombre());
                     
                     int idNuevoGrupo = grupoDAO.crear(grupo);
-                    
-                    UsuariosGrupoDAO usuariosGrupo = new UsuariosGrupoDAO();
-                    
+                                        
                     // Crear relaciones y enviar invitacion a miembros iniciales.
                     for (int idMiembro : nuevoGrupo.getIdsUsuariosMiembro())
                     {
-                        usuariosGrupo.crear(new UsuariosGrupo(
+                        usuariosGrupoDAO.crear(new UsuariosGrupo(
                             idMiembro,
                             idNuevoGrupo
                         ));

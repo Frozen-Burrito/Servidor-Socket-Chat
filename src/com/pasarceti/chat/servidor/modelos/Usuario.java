@@ -49,21 +49,21 @@ public class Usuario {
         this.password = password;
     }
 
-    public List<Amistad> getAmigos() {
-        AmistadDAO amistad = new AmistadDAO();
-        amigos = amistad.busqueda_porUsuario(id);
-        return amigos;
-    }
+//    public List<Amistad> getAmigos() {
+//        AmistadDAO amistad = new AmistadDAO();
+//        amigos = amistad.busqueda_porUsuario(id);
+//        return amigos;
+//    }
 
     public void setAmigos(List<Amistad> amigos) {
         this.amigos = amigos;
     }
 
-    public List<UsuariosGrupo> getGrupos() {
-        UsuariosGrupoDAO grupo = new UsuariosGrupoDAO();
-        grupos = grupo.busqueda_porUsuario(this);
-        return grupos;
-    }
+//    public List<UsuariosGrupo> getGrupos() {
+//        UsuariosGrupoDAO grupo = new UsuariosGrupoDAO();
+//        grupos = grupo.busqueda_porUsuario(this);
+//        return grupos;
+//    }
 
     public void setGrupos(List<UsuariosGrupo> grupos) {
         this.grupos = grupos;

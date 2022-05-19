@@ -1,6 +1,6 @@
 package com.pasarceti.chat.servidor.modelos;
 
-import com.pasarceti.chat.servidor.bd.ControladorBD;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -10,10 +10,12 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class InvitacionDAO extends ControladorBD {
+public class InvitacionDAO {
 
-    public InvitacionDAO() {
-        super();
+    private final Connection conexionBD;
+    
+    public InvitacionDAO(Connection conexionBD) {        
+        this.conexionBD = conexionBD; 
     }
 
     // Crear invitación para entablar amistad
@@ -21,7 +23,7 @@ public class InvitacionDAO extends ControladorBD {
         PreparedStatement ps;
         try {
             String query = "INSERT INTO invitacion (id_usuario_invitado, id_usuario_emisor) VALUES(?,?)";
-            ps = getC().prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+            ps = conexionBD.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
             ps.setInt(1, invitacion.getId_usuario_invitado());
             ps.setInt(2, invitacion.getId_usuario_emisor());
             ps.executeUpdate();
@@ -44,7 +46,7 @@ public class InvitacionDAO extends ControladorBD {
         PreparedStatement ps;
         try {
             String query = "INSERT INTO invitacion (id_usuario_invitado, id_grupo, id_usuario_emisor) VALUES(?,?)";
-            ps = getC().prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+            ps = conexionBD.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
             ps.setInt(1, invitacion.getId_usuario_invitado());
             ps.setInt(2, invitacion.getId_grupo());
             ps.setInt(3, invitacion.getId_usuario_emisor());
@@ -68,7 +70,7 @@ public class InvitacionDAO extends ControladorBD {
         ResultSet res;
         Invitacion invitacion = new Invitacion();
         try {
-            ps = getC().prepareStatement("SELECT * from invitacion WHERE id = ?");
+            ps = conexionBD.prepareStatement("SELECT * from invitacion WHERE id = ?");
             ps.setInt(1, id);
             res = ps.executeQuery();
             if (res.next()) {
@@ -89,7 +91,7 @@ public class InvitacionDAO extends ControladorBD {
         ResultSet res;
         List<Invitacion> invitaciones = new ArrayList<>();
         try {
-            ps = getC().prepareStatement("SELECT * from invitacion WHERE id_usuario_emisor = ?");
+            ps = conexionBD.prepareStatement("SELECT * from invitacion WHERE id_usuario_emisor = ?");
             ps.setInt(1, usuario.getId());
             res = ps.executeQuery();
             while (res.next()) {
@@ -113,7 +115,7 @@ public class InvitacionDAO extends ControladorBD {
         ResultSet res;
         List<Invitacion> invitaciones = new ArrayList<>();
         try {
-            ps = getC().prepareStatement("SELECT * from invitacion WHERE id_usuario_invitado = ?");
+            ps = conexionBD.prepareStatement("SELECT * from invitacion WHERE id_usuario_invitado = ?");
             ps.setInt(1, usuario.getId());
             res = ps.executeQuery();
             while (res.next()) {
@@ -134,10 +136,10 @@ public class InvitacionDAO extends ControladorBD {
     public void eliminar(Invitacion invitacion) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("DELETE FROM invitacion WHERE id = ?");
+            ps = conexionBD.prepareStatement("DELETE FROM invitacion WHERE id = ?");
             ps.setInt(1, invitacion.getId());
             ps.executeUpdate();
-        } catch (Exception ex) {
+        } catch (SQLException ex) {
             Logger.getLogger(InvitacionDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
     }

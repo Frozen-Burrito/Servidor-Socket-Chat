@@ -341,16 +341,16 @@ public class EstadoServidor
      * lista de posibles Destinatarios (usuarios, amigos y grupos).
      * 
      * @param idUsuario El ID del usuario que va a obtener sus contactos.
+     * @param amistades La coleccion de amistades que tiene el usaurio.
+     * @param usuariosGrupo Los grupos de los que forma parte el usuario.
      * @return El objeto con las listas de contactos del usuario.
     */
-    public DTOContactos getContactosUsuario(int idUsuario) 
+    public DTOContactos getContactosUsuario(int idUsuario, List<Amistad> amistades, List<UsuariosGrupo> usuariosGrupo) 
     {
-        List<Amistad> amistades = new AmistadDAO().busqueda_porUsuario(idUsuario);
         List<DTOUsuario> amigos = getAmigosDeUsuario(idUsuario, amistades);
 
         List<DTOUsuario> usuariosConectados = getUsuariosConectados(idUsuario, amigos);
 
-        List<UsuariosGrupo> usuariosGrupo = new UsuariosGrupoDAO().busqueda_porIdUsuario(idUsuario);
         List<DTOGrupo> grupos = getGruposDeUsuario(idUsuario, usuariosGrupo);
         
         return new DTOContactos(

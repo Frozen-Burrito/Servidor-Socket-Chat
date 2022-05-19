@@ -1,25 +1,25 @@
 package com.pasarceti.chat.servidor.modelos;
 
-import com.pasarceti.chat.servidor.bd.ControladorBD;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class GrupoDAO extends ControladorBD {
+public class GrupoDAO {
 
-    public GrupoDAO() {
-        super();
+    private final Connection conexionBD;
+    
+    public GrupoDAO(Connection conexionBD) {
+        this.conexionBD = conexionBD; 
     }
 
     // Añadir Grupo
     public int crear(Grupo grupo) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("INSERT INTO grupo VALUES(?,?)");
+            ps = conexionBD.prepareStatement("INSERT INTO grupo VALUES(?,?)");
             ps.setInt(1, grupo.getId());
             ps.setString(2, grupo.getNombre());
             ps.executeUpdate();
@@ -44,7 +44,7 @@ public class GrupoDAO extends ControladorBD {
         ResultSet res;
         Grupo grupo = null;
         try {
-            ps = getC().prepareStatement("SELECT * from grupo WHERE id = ?");
+            ps = conexionBD.prepareStatement("SELECT * from grupo WHERE id = ?");
             ps.setInt(1, id);
             res = ps.executeQuery();
             if (res.next()) {
@@ -64,7 +64,7 @@ public class GrupoDAO extends ControladorBD {
         ResultSet res;
         Grupo grupo = null;
         try {
-            ps = getC().prepareStatement("SELECT * from grupo WHERE nombre = ?");
+            ps = conexionBD.prepareStatement("SELECT * from grupo WHERE nombre = ?");
             ps.setString(1, nombre);
             res = ps.executeQuery();
             if (res.next()) {
@@ -82,10 +82,10 @@ public class GrupoDAO extends ControladorBD {
     public void eliminar(Grupo grupo) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("DELETE FROM grupo WHERE id = ?");
+            ps = conexionBD.prepareStatement("DELETE FROM grupo WHERE id = ?");
             ps.setInt(1, grupo.getId());
             ps.executeUpdate();
-        } catch (Exception ex) {
+        } catch (SQLException ex) {
             Logger.getLogger(GrupoDAO.class.getName()).log(Level.SEVERE, null, ex);
         }
     }

@@ -1,7 +1,6 @@
 package com.pasarceti.chat.servidor.controladores;
 
-import com.pasarceti.chat.servidor.bd.ControladorBD;
-import com.pasarceti.chat.servidor.bd.CredencialesBD;
+import com.pasarceti.chat.servidor.bd.PoolConexionesBD;
 import com.pasarceti.chat.servidor.modelos.Evento;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -49,18 +48,16 @@ public class ServidorChat implements Runnable
     
     private final NotificadorDeEventos notificador;
     
-    private final CredencialesBD credencialesBD;
+    private final PoolConexionesBD poolDeConexiones;
 
-    public ServidorChat(int puerto, Level nivelDeLogs, CredencialesBD credenciales) 
+    public ServidorChat(int puerto, Level nivelDeLogs, PoolConexionesBD poolDeConexiones) 
     {
         this.puerto = puerto;
         logger.setLevel(nivelDeLogs);
         
         this.notificador = new NotificadorDeEventos(estado, queueEventos);
         
-        this.credencialesBD = credenciales;
-        
-        ControladorBD.setCredenciales(this.credencialesBD);
+        this.poolDeConexiones = poolDeConexiones;
     }
     
     @Override
@@ -102,7 +99,7 @@ public class ServidorChat implements Runnable
                 logger.info("Cliente conectado");
                 
                 // Manejar la comunicación del cliente con una instancia de ManejadorClientes.
-                Runnable tareaPeticion = new ManejadorCliente(cliente, estado, queueEventos);
+                Runnable tareaPeticion = new ManejadorCliente(cliente, estado, queueEventos, poolDeConexiones);
 
                 exec.execute(tareaPeticion);
             }

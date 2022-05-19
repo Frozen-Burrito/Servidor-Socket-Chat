@@ -4,22 +4,34 @@ import javax.swing.SwingUtilities;
 
 import com.pasarceti.chat.servidor.controladores.ServidorChat;
 import com.pasarceti.chat.servidor.bd.CredencialesBD;
+import com.pasarceti.chat.servidor.bd.PoolConexionesBD;
 import com.pasarceti.chat.servidor.gui.InterfazGrafica;
 import com.pasarceti.chat.servidor.gui.WorkerEventos;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 public class Main {
 
     public static void main(String[] args) throws InterruptedException {
         
-        final CredencialesBD credenciales = new CredencialesBD(
-            "jdbc:mysql://localhost/chat",
-            "root",
-            ""
-        );
+        CredencialesBD credenciales = null;
         
-        ServidorChat servidor = new ServidorChat(9998, Level.INFO, credenciales);
+        try 
+        {
+            credenciales = CredencialesBD.desdeArchivoConfig("config_servidor.txt");
+        } 
+        catch (FileNotFoundException ex) {
+            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        PoolConexionesBD poolDeConexiones = new PoolConexionesBD(credenciales);
+        
+        ServidorChat servidor = new ServidorChat(9998, Level.INFO, poolDeConexiones);
 /*
         El servidor envía los eventos a una fila FIFO que bloquea. Con esto, otras
         clases o hilos pueden "consumir" los eventos producidos por el servidor.

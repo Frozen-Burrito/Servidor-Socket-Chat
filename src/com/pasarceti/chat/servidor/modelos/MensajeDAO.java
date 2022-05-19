@@ -1,6 +1,6 @@
 package com.pasarceti.chat.servidor.modelos;
 
-import com.pasarceti.chat.servidor.bd.ControladorBD;
+import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,10 +12,12 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class MensajeDAO extends ControladorBD {
+public class MensajeDAO {
     
-    public MensajeDAO() {
-        super();
+    private final Connection conexionBD;
+    
+    public MensajeDAO(Connection conexionBD) {        
+        this.conexionBD = conexionBD; 
     }
 
     // Crear mensaje para otro usuario
@@ -23,7 +25,7 @@ public class MensajeDAO extends ControladorBD {
         PreparedStatement ps;
         try {
             String query = "INSERT INTO mensaje (contenido, fecha, id_autor, id_dest_usuario) VALUES(?,?,?,?)";
-            ps = getC().prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+            ps = conexionBD.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, mensaje.getContenido());
             
             Timestamp fecha = Timestamp.valueOf(mensaje.getFecha());
@@ -50,7 +52,7 @@ public class MensajeDAO extends ControladorBD {
     public void crear_paraGrupo(Mensaje mensaje) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("INSERT INTO mensaje (contenido, fecha, id_autor, id_dest_grupo) VALUES(?,?,?,?)");
+            ps = conexionBD.prepareStatement("INSERT INTO mensaje (contenido, fecha, id_autor, id_dest_grupo) VALUES(?,?,?,?)");
             ps.setString(1, mensaje.getContenido());
             
             Timestamp fecha = Timestamp.valueOf(mensaje.getFecha());
@@ -71,7 +73,7 @@ public class MensajeDAO extends ControladorBD {
         ResultSet res;
         List<Mensaje> mensajes = new ArrayList<>();
         try {
-            ps = getC().prepareStatement("SELECT * from mensaje WHERE id_dest_usuario = ?");
+            ps = conexionBD.prepareStatement("SELECT * from mensaje WHERE id_dest_usuario = ?");
             ps.setInt(1, usuario.getId());
             res = ps.executeQuery();
             while (res.next()) {
@@ -101,7 +103,7 @@ public class MensajeDAO extends ControladorBD {
         ResultSet res;
         List<Mensaje> mensajes = new ArrayList<>();
         try {
-            ps = getC().prepareStatement("SELECT * from mensaje WHERE id_dest_grupo = ?");
+            ps = conexionBD.prepareStatement("SELECT * from mensaje WHERE id_dest_grupo = ?");
             ps.setInt(1, grupo.getId());
             res = ps.executeQuery();
             while (res.next()) {
@@ -128,7 +130,7 @@ public class MensajeDAO extends ControladorBD {
     public void eliminar(Mensaje mensaje) {
         PreparedStatement ps;
         try {
-            ps = getC().prepareStatement("DELETE FROM mensaje WHERE id = ?");
+            ps = conexionBD.prepareStatement("DELETE FROM mensaje WHERE id = ?");
             ps.setInt(1, mensaje.getId());
             ps.executeUpdate();
         } catch (Exception ex) {
