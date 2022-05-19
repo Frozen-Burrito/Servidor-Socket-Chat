@@ -42,6 +42,8 @@ public class ServidorChat implements Runnable
     // Mantiene el estado del servidor en tiempo real, notifica a los listeners 
     // registrados cuando cambia alguna de sus propiedades.
     private final EstadoServidor estado = new EstadoServidor();
+    
+    private boolean detenido;
 
     // El queue para el patrón productor-consumidor (servidor y gui, en este caso)
     // que envía los eventos producidos por el servidor a los consumidores de este queue.
@@ -87,11 +89,19 @@ public class ServidorChat implements Runnable
             socketServidor = new ServerSocket();
             socketServidor.setReuseAddress(true);
             socketServidor.bind(new InetSocketAddress(puerto));
+            
+            detenido = false;
+            
             logger.info("Servidor iniciado, esperando conexiones.");
 
             // Aceptar conexiones mientras el servicio de ejecucion siga activo.
             while (!exec.isShutdown()) 
             {   
+                if (Thread.interrupted())
+                {
+                    throw new InterruptedException();
+                }
+                
                 // Esperar a que haya una conexion de un cliente. Aceptarla cuando llegue.
                 final Socket cliente = socketServidor.accept();
 
@@ -104,9 +114,7 @@ public class ServidorChat implements Runnable
                 Runnable tareaPeticion = new ManejadorCliente(cliente, estado, queueEventos, poolDeConexiones);
 
                 exec.execute(tareaPeticion);
-            }
-
-            logger.info("El servidor ya dejó de esperar conexiones.");        
+            }        
         }
         catch (SocketException e) 
         {
@@ -118,23 +126,35 @@ public class ServidorChat implements Runnable
         {
             logger.log(Level.SEVERE, "Error iniciando el servidor: {0}", e.getMessage());
             detener();
+        } catch (InterruptedException ex) 
+        {
+            System.out.println("Servidor interrumpido");
+            detener();
+            logger.info("Servidor detenido con interrupción.");
         }
         finally 
         {
+            logger.info("El servidor fue desactivado; no se aceptan más conexiones.");
             estado.removerListener(notificador);
         }
+    }
+    
+    public boolean estaDetenido()
+    {
+        return detenido;
     }
     
     /**
      * Cierra el servidor de sockets, interrumpiendo cualquier comunicación pendiente.
      */
-    public void detener()
+    private void detener()
     {
         if (socketServidor != null) 
         {
             try 
             {
                 socketServidor.close();
+                detenido = true;
                 
             } catch (IOException e) 
             {

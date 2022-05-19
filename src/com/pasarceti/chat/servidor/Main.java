@@ -50,25 +50,27 @@ public class Main {
         Ver el ejemplo con la clase LoggerDeEventos, que consume los eventos del 
         servidor y los muestra en consola con un Logger.
 */
+        // Ejecutar el servidor en un hilo aparte.
+        final Thread hiloServidor = new Thread(servidor);
+        hiloServidor.start();
         
         InterfazGrafica gui = new InterfazGrafica();
         
         gui.ConfigurarBtnON((ActionEvent e) -> {
-            gui.ActBtnOn();
-           // Thread hiloServidor = new Thread(servidor);
-           // hiloServidor.start();        
+            if (servidor.estaDetenido())
+            {
+                gui.ActBtnOn();
+                final Thread hiloServidorReactivado = new Thread(servidor);
+                hiloServidorReactivado.start();
+            }
         });
         
         gui.ConfigurarBtnOFF((ActionEvent e) -> {
             gui.ActBtnOFF();
-            //servidor.terminar();
+            hiloServidor.interrupt();
         });
         
         WorkerEventos workerEventos = new WorkerEventos(servidor.getQueueEventos(), gui);
-        
-        // Ejecutar el servidor en un hilo aparte.
-        Thread hiloServidor = new Thread(servidor);
-        hiloServidor.start();
 
         SwingUtilities.invokeLater(new Runnable() {
             @Override
