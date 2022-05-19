@@ -80,7 +80,7 @@ public class ControladorChat
             return new EventoServidor(
                 TipoDeEvento.ERROR_AUTENTICACION, 
                 idUsuarioAccion, 
-                ERR_USUARIO_NO_COINCIDE
+                gson.toJson(new ErrorEvento(ERR_USUARIO_NO_COINCIDE))
             );
         }
 
@@ -189,8 +189,10 @@ public class ControladorChat
                     List<Amistad> amistades = amistadDAO.busqueda_porUsuario(usuario.getId());
                     List<UsuariosGrupo> usuariosGrupo = usuariosGrupoDAO.busqueda_porIdUsuario(usuario.getId());
 
+                    DTOUsuario dtoUsuario = new DTOUsuario(usuario.getId(), usuario.getNombre_usuario(), true);
+                    
                     DTOContactos listaDeContactos = estadoServidor.getContactosUsuario(
-                        usuario.getId(),
+                        dtoUsuario,
                         amistades,
                         usuariosGrupo
                     );

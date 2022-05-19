@@ -340,20 +340,21 @@ public class EstadoServidor
      * @brief Busca todos los contactos de un usuario y los retorna en una sola
      * lista de posibles Destinatarios (usuarios, amigos y grupos).
      * 
-     * @param idUsuario El ID del usuario que va a obtener sus contactos.
+     * @param usuario El usuario que inició sesión y va a obtener sus contactos.
      * @param amistades La coleccion de amistades que tiene el usaurio.
      * @param usuariosGrupo Los grupos de los que forma parte el usuario.
      * @return El objeto con las listas de contactos del usuario.
     */
-    public DTOContactos getContactosUsuario(int idUsuario, List<Amistad> amistades, List<UsuariosGrupo> usuariosGrupo) 
+    public DTOContactos getContactosUsuario(DTOUsuario usuario, List<Amistad> amistades, List<UsuariosGrupo> usuariosGrupo) 
     {
-        List<DTOUsuario> amigos = getAmigosDeUsuario(idUsuario, amistades);
+        List<DTOUsuario> amigos = getAmigosDeUsuario(usuario.getIdUsuario(), amistades);
 
-        List<DTOUsuario> usuariosConectados = getUsuariosConectados(idUsuario, amigos);
+        List<DTOUsuario> usuariosConectados = getUsuariosConectados(usuario.getIdUsuario(), amigos);
 
-        List<DTOGrupo> grupos = getGruposDeUsuario(idUsuario, usuariosGrupo);
+        List<DTOGrupo> grupos = getGruposDeUsuario(usuario.getIdUsuario(), usuariosGrupo);
         
         return new DTOContactos(
+            usuario,
             amigos,
             usuariosConectados,
             grupos,

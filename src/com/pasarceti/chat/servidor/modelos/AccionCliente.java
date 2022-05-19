@@ -55,7 +55,9 @@ public class AccionCliente extends Comunicacion
     public static boolean esAccionDeAutenticacion(TipoDeAccion tipoDeAccion) 
     {
         return tipoDeAccion == TipoDeAccion.INICIAR_SESION || 
-               tipoDeAccion == TipoDeAccion.REGISTRAR_USUARIO;
+               tipoDeAccion == TipoDeAccion.REGISTRAR_USUARIO ||
+               tipoDeAccion == TipoDeAccion.RECUPERAR_CONTRASEÑA ||
+               tipoDeAccion == TipoDeAccion.CERRAR_SESION;
     }
     
     public boolean esAccionDeAutenticacion() 

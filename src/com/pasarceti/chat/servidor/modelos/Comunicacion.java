@@ -95,8 +95,9 @@ public class Comunicacion
 
     public void setCuerpoJSON(String cuerpoJSON) throws IllegalArgumentException
     {
-        validarLongitudCuerpo(longitudCuerpo, cuerpoJSON);
+        validarLongitudCuerpo(cuerpoJSON.length(), cuerpoJSON);
 
+        this.longitudCuerpo = cuerpoJSON.length();
         this.cuerpoJSON = cuerpoJSON;
     }
 }
