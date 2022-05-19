@@ -2,6 +2,7 @@ package com.pasarceti.chat.servidor.controladores;
 
 import com.google.gson.Gson;
 import com.pasarceti.chat.servidor.modelos.Cliente;
+import com.pasarceti.chat.servidor.modelos.ErrorEvento;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
@@ -41,7 +42,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
     @Override
     public void propertyChange(PropertyChangeEvent evento)
     {
-        EventoServidor notificacion;
+        Evento notificacion;
         
         switch (evento.getPropertyName())
         {
@@ -58,9 +59,12 @@ public class NotificadorDeEventos implements PropertyChangeListener
             notificacion = eventoPorCambioEnGrupos(evento);
             break;
         default:
-            notificacion = new EventoServidor(
+            notificacion = new Evento(
                 TipoDeEvento.ERROR_SERVIDOR, 
-                "El servidor iba a enviar un evento, pero se confundió."
+                new EventoServidor(
+                    TipoDeEvento.ERROR_SERVIDOR, 
+                    gson.toJson(new ErrorEvento("El servidor iba a enviar un evento, pero se confundió."))
+                )
             );
         }
         
@@ -68,9 +72,9 @@ public class NotificadorDeEventos implements PropertyChangeListener
         // receptores como notificacion.
         if (notificacion != null) 
         {
-            final EventoServidor eventoServidor = notificacion;
+            final Evento eventoServidor = notificacion;
             
-            eventoServidor.getReceptores().forEach(receptor -> {
+            eventoServidor.getEventoProducido().getReceptores().forEach(receptor -> {
 
                 try 
                 {
@@ -78,36 +82,52 @@ public class NotificadorDeEventos implements PropertyChangeListener
                     int idUsuario = receptor.getId();
                     
                     // Usar el id de cada cliente al enviarle su notificación.
-                    eventoServidor.setIdUsuarioCliente(idUsuario);
+                    eventoServidor.getEventoProducido().setIdUsuarioCliente(idUsuario);
                     
-                    ManejadorCliente.enviarEventoASocket(cliente, eventoServidor);
+                    queueEventos.offer(eventoServidor);
+                    
+                    ManejadorCliente.enviarEventoASocket(cliente, eventoServidor.getEventoProducido());
                 } 
                 catch (IOException e) 
                 {
-                    queueEventos.offer(new Evento(TipoDeEvento.ERROR_SERVIDOR, e.getMessage()));
+                    queueEventos.offer(
+                        new Evento(
+                            TipoDeEvento.ERROR_SERVIDOR,
+                            new EventoServidor(
+                                    TipoDeEvento.ERROR_SERVIDOR, 
+                                    gson.toJson(new ErrorEvento(e.getMessage()))
+                            )
+                        )
+                    );
                 }
             });
         }
     }
     
-    private EventoServidor eventoPorUsuariosConectados(PropertyChangeEvent evento)
+    private Evento eventoPorUsuariosConectados(PropertyChangeEvent evento)
     {
-        EventoServidor notificacion;
+        Evento notificacion;
 
         if (evento.getNewValue() != null) 
         {
             // Si el nuevo valor no es null, un usuario se conectó.
-            notificacion = new EventoServidor(
-                TipoDeEvento.USUARIO_CONECTADO, 
-                gson.toJson(evento.getNewValue())
+            notificacion = new Evento(
+                TipoDeEvento.USUARIO_CONECTADO,
+                new EventoServidor(
+                    TipoDeEvento.USUARIO_CONECTADO, 
+                    gson.toJson(evento.getNewValue())
+                )
             );
         }
         else 
         {
             // Si el nuevo valor es null, un usuario se desconectó
-            notificacion = new EventoServidor(
-                TipoDeEvento.USUARIO_DESCONECTADO, 
-                gson.toJson(evento.getOldValue())
+            notificacion = new Evento(
+                TipoDeEvento.USUARIO_DESCONECTADO,
+                new EventoServidor(
+                    TipoDeEvento.USUARIO_DESCONECTADO, 
+                    gson.toJson(evento.getOldValue())
+                )
             );
         }
         
@@ -116,7 +136,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
                 
         // Un cambio en los usuarios conectados es enviado a todos los demas
         // usuarios que esten conectados.
-        notificacion.agregarReceptores((Set<Cliente>) todosLosConectados);
+        notificacion.getEventoProducido().agregarReceptores((Set<Cliente>) todosLosConectados);
         
         return notificacion;
     }
@@ -128,11 +148,11 @@ public class NotificadorDeEventos implements PropertyChangeListener
      * @param evento El evento de cambio en las invitaciones.
      * @return El EventoServidor adecuado.
      */
-    private EventoServidor eventoPorCambioEnInvitacion(
+    private Evento eventoPorCambioEnInvitacion(
         PropertyChangeEvent evento
     ) 
     {
-        EventoServidor notificacion = null;
+        Evento notificacion = null;
         
         if (evento.getOldValue() instanceof DTOInvAceptada)
         {
@@ -150,14 +170,17 @@ public class NotificadorDeEventos implements PropertyChangeListener
                             
                 if (clienteQueInvito != null)
                 {
-                    notificacion = new EventoServidor(
+                    notificacion = new Evento(
                         TipoDeEvento.AMISTAD_ACEPTADA,
-                        jsonOtroUsuario
+                        new EventoServidor(
+                            TipoDeEvento.AMISTAD_ACEPTADA, 
+                            jsonOtroUsuario
+                        )
                     );
                     
                     // El usuario tiene un nuevo amigo. Notificarle a ese usuario con 
                     // los datos de su nuevo amigo.
-                    notificacion.agregarReceptor(clienteQueInvito);
+                    notificacion.getEventoProducido().agregarReceptor(clienteQueInvito);
                 }
             }
             else 
@@ -167,9 +190,12 @@ public class NotificadorDeEventos implements PropertyChangeListener
                 // Enviar la notificacion si el grupo existe.
                 if (grupo != null)
                 {
-                    notificacion = new EventoServidor(
+                    notificacion = new Evento(
                         TipoDeEvento.USUARIO_SE_UNIO_A_GRUPO,
-                        jsonOtroUsuario
+                        new EventoServidor(
+                            TipoDeEvento.USUARIO_SE_UNIO_A_GRUPO,
+                            jsonOtroUsuario
+                        )
                     );
                     
                     // Agregar como receptores a todos los usuarios conectados 
@@ -180,7 +206,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
                         
                         if (clienteMiembro != null) 
                         {
-                            notificacion.agregarReceptor(clienteMiembro);
+                            notificacion.getEventoProducido().agregarReceptor(clienteMiembro);
                         }
                     }
                 }
@@ -198,12 +224,15 @@ public class NotificadorDeEventos implements PropertyChangeListener
             {
                 final String jsonInvitacion = gson.toJson(invitacion);
                 
-                notificacion = new EventoServidor(
+                notificacion = new Evento(
                     TipoDeEvento.INVITACION_ENVIADA,
-                    jsonInvitacion
+                    new EventoServidor(
+                        TipoDeEvento.INVITACION_ENVIADA, 
+                        jsonInvitacion
+                    )
                 );
                 
-                notificacion.agregarReceptor(clienteInvitado);
+                notificacion.getEventoProducido().agregarReceptor(clienteInvitado);
             }
         }
         else if (evento.getNewValue() == null && evento.getOldValue() instanceof DTOInvitacion)
@@ -224,21 +253,24 @@ public class NotificadorDeEventos implements PropertyChangeListener
                 final String jsonInvRechazada = gson.toJson(idInvRechazada);
 
                 // La invitación fue rechazada.
-                notificacion = new EventoServidor(
+                notificacion = new Evento(
                     TipoDeEvento.AMISTAD_RECHAZADA,
-                    jsonInvRechazada
+                    new EventoServidor(
+                        TipoDeEvento.AMISTAD_RECHAZADA, 
+                        jsonInvRechazada
+                    )
                 );
                 
-                notificacion.agregarReceptor(clienteQueInvita);
+                notificacion.getEventoProducido().agregarReceptor(clienteQueInvita);
             }
         }
         
         return notificacion;
     }
     
-    private EventoServidor eventoPorMensajeRecibido(PropertyChangeEvent evento) 
+    private Evento eventoPorMensajeRecibido(PropertyChangeEvent evento) 
     {
-        EventoServidor notificacion = null;
+        Evento notificacion = null;
         
         if (evento.getNewValue() instanceof DTOMensaje)
         {
@@ -251,23 +283,26 @@ public class NotificadorDeEventos implements PropertyChangeListener
             {
                 final String jsonMensajeRecibido = gson.toJson(mensaje);
 
-                notificacion = new EventoServidor(
-                    TipoDeEvento.MENSAJE_ENVIADO, 
-                    jsonMensajeRecibido
+                notificacion = new Evento(
+                    TipoDeEvento.MENSAJE_ENVIADO,
+                    new EventoServidor(
+                        TipoDeEvento.MENSAJE_ENVIADO, 
+                        jsonMensajeRecibido
+                    )
                 );
                 
                 // Si el mensaje fue agregado para este usuario, notificar con 
                 // los datos del nuevo mensaje.
-                notificacion.agregarReceptor(clienteDest);
+                notificacion.getEventoProducido().agregarReceptor(clienteDest);
             }
         }
         
         return notificacion;
     }
     
-    private EventoServidor eventoPorCambioEnGrupos(PropertyChangeEvent evento)
+    private Evento eventoPorCambioEnGrupos(PropertyChangeEvent evento)
     {       
-        EventoServidor notificacion;
+        Evento notificacion;
         
         if (evento.getOldValue() instanceof Integer && evento.getNewValue() == null)
         {
@@ -282,9 +317,12 @@ public class NotificadorDeEventos implements PropertyChangeListener
 
                 String jsonIdGrupoElim = gson.toJson(objIdGrupo);
 
-                notificacion = new EventoServidor(
-                    TipoDeEvento.GRUPO_ELIMINADO, 
-                    jsonIdGrupoElim
+                notificacion = new Evento(
+                    TipoDeEvento.GRUPO_ELIMINADO,
+                    new EventoServidor(
+                        TipoDeEvento.GRUPO_ELIMINADO, 
+                        jsonIdGrupoElim
+                    )
                 );
                 
                 grupo.getIdsUsuariosMiembro().forEach(idMiembro -> {
@@ -295,7 +333,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
                     {
                         // Agregar como receptores a todos los usuarios conectados 
                         // que forman parte del grupo.
-                        notificacion.agregarReceptor(clienteMiembro);
+                        notificacion.getEventoProducido().agregarReceptor(clienteMiembro);
                     }
                 });
             }
@@ -309,10 +347,14 @@ public class NotificadorDeEventos implements PropertyChangeListener
 
             final String idUsuarioJson = gson.toJson(idUsuario);
 
-            notificacion = new EventoServidor(
-                TipoDeEvento.USUARIO_ABANDONO_GRUPO, 
-                idUsuarioJson
+            notificacion = new Evento(
+                TipoDeEvento.GRUPO_ELIMINADO,
+                new EventoServidor(
+                    TipoDeEvento.USUARIO_ABANDONO_GRUPO, 
+                    idUsuarioJson
+                )
             );
+
             
             // Enviar evento del servidor a cada miembro del grupo que este conectado.
             abandono.getGrupoAbandonado().getIdsUsuariosMiembro().forEach(idMiembro -> {
@@ -323,7 +365,7 @@ public class NotificadorDeEventos implements PropertyChangeListener
                 {
                     // Agregar como receptores a todos los usuarios conectados 
                     // que forman parte del grupo.
-                    notificacion.agregarReceptor(clienteMiembro);
+                    notificacion.getEventoProducido().agregarReceptor(clienteMiembro);
                 }
             });
             

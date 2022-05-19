@@ -159,7 +159,6 @@ public class ManejadorCliente implements Runnable
         try 
         {
             // Realizar la accion solicitada y producir un resultado.
-            // NOTA: Algunos tipos de acciones tienen "efectos secundarios".
             EventoServidor resultado = realizarAccion(accion);
 
             // Enviar resultado al cliente.
@@ -170,7 +169,7 @@ public class ManejadorCliente implements Runnable
             // Si la peticion tiene un error de formato detectado al intentar
             // hacer un parse de AccionCliente, regresar una respuesta de error 
             // al cliente.
-            Evento eventoError = new Evento(TipoDeEvento.ERROR_CLIENTE, e.getMessage());
+            Evento eventoError = new Evento(TipoDeEvento.ERROR_CLIENTE, null, "Error manejando la petición del cliente: " +  e.getMessage());
 
             queueEventos.offer(eventoError, BLOQUEO_MAX_EVT_MS, TimeUnit.MILLISECONDS);
             
@@ -208,13 +207,12 @@ public class ManejadorCliente implements Runnable
             poolConexionesBD.regresarConexion(conexionBD.get());
             conexionBD.set(null);
 
-            EventoServidor resultado = controladorChat.ejecutarAccion(socket, accionCliente);
+            Evento resultadoAccion = controladorChat.ejecutarAccion(socket, accionCliente);
             
             // Notificar con el evento resultante de la accion.
-            Evento evento = new Evento(resultado.getTipoDeEvento(), resultado.getCuerpoJSON());
-            queueEventos.offer(evento, BLOQUEO_MAX_EVT_MS, TimeUnit.MILLISECONDS);
+            queueEventos.offer(resultadoAccion, BLOQUEO_MAX_EVT_MS, TimeUnit.MILLISECONDS);
             
-            return resultado;
+            return resultadoAccion.getEventoProducido();
             
         } catch (SQLException ex) 
         {
@@ -224,7 +222,7 @@ public class ManejadorCliente implements Runnable
             );
             
             // Notificar con el evento resultante de la accion.
-            Evento evento = new Evento(resultadoErrSQL.getTipoDeEvento(), resultadoErrSQL.getCuerpoJSON());
+            Evento evento = new Evento(TipoDeEvento.ERROR_SERVIDOR, resultadoErrSQL);
             queueEventos.offer(evento, BLOQUEO_MAX_EVT_MS, TimeUnit.MILLISECONDS);
             
             return resultadoErrSQL;

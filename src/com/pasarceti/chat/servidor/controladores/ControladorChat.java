@@ -66,7 +66,7 @@ public class ControladorChat
      * @param accionCliente La acción solicitada por el cliente.
      * @return Un evento del servidor con la respuesta a la acción
      */
-    public EventoServidor ejecutarAccion(Socket cliente, AccionCliente accionCliente)
+    public Evento ejecutarAccion(Socket cliente, AccionCliente accionCliente)
     {
         final int idUsuarioAccion = accionCliente.getIdUsuarioCliente();
         final String datosJson = accionCliente.getCuerpoJSON();
@@ -77,10 +77,16 @@ public class ControladorChat
         {
             // Si el ID de usuario en la accion del cliente y el ID asociado al 
             // cliente no coinciden, producir un error de autenticacion.
-            return new EventoServidor(
+            EventoServidor evtErrAutenticacion = new EventoServidor(
                 TipoDeEvento.ERROR_AUTENTICACION, 
-                idUsuarioAccion, 
+                idUsuario.get(), 
                 gson.toJson(new ErrorEvento(ERR_USUARIO_NO_COINCIDE))
+            );
+            
+            return new Evento(
+                TipoDeEvento.ERROR_AUTENTICACION, 
+                evtErrAutenticacion, 
+                ERR_USUARIO_NO_COINCIDE
             );
         }
 
@@ -98,20 +104,26 @@ public class ControladorChat
             case RECHAZAR_INVITACION: return aceptarInvitacion(datosJson);
             case ABANDONAR_GRUPO: return abandonarGrupo(datosJson);
             
-            default: return new EventoServidor(
+            default: return new Evento(
+                TipoDeEvento.ERROR_SERVIDOR, 
+                new EventoServidor(
                     TipoDeEvento.ERROR_SERVIDOR,  
                     idUsuario.get(), 
                     ERR_GENERAL
+                )
             );
         }
     }
 
-    private EventoServidor registrarUsuario(String json)
+    private Evento registrarUsuario(String json)
     {
-        EventoServidor resultado = new EventoServidor(
-            TipoDeEvento.ERROR_SERVIDOR,
-            idUsuario.get(),
-            ""
+        Evento resultado = new Evento(
+            TipoDeAccion.REGISTRAR_USUARIO,
+            new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR,
+                idUsuario.get(),
+                ""
+            )
         );
         
         try 
@@ -132,15 +144,15 @@ public class ControladorChat
                 ));
 
                 // Usuario creado, registro exitoso.
-                resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                resultado.setIdUsuarioCliente(idNuevoUsuario);
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                resultado.getEventoProducido().setIdUsuarioCliente(idNuevoUsuario);
 
             } else {
                 // Ya existe un usuario con este nombre de usuario, retornar error.
                 String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_EXISTE + " " + datosRegistro.getNombreUsuario()));
                 
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(jsonErr);
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.getEventoProducido().setCuerpoJSON(jsonErr);
             }
 
         } 
@@ -149,20 +161,22 @@ public class ControladorChat
             // El cuerpo de la acción del cliente no está bien formado.
             String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
             
-            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-            resultado.setCuerpoJSON(jsonErr);
+            resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.getEventoProducido().setCuerpoJSON(jsonErr);
         }
         
         return resultado;
     }
 
-    public EventoServidor iniciarSesion(final Socket cliente, String json) 
+    public Evento iniciarSesion(final Socket cliente, String json) 
     {
-        // La respuesta que será enviada al cliente.
-        EventoServidor resultado = new EventoServidor(
-            TipoDeEvento.ERROR_SERVIDOR, 
-            idUsuario.get(), 
-            ""
+        Evento resultado = new Evento(
+            TipoDeAccion.INICIAR_SESION,
+            new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR,
+                idUsuario.get(),
+                ""
+            )
         );
         
         try 
@@ -200,21 +214,21 @@ public class ControladorChat
                     String contactosJson = gson.toJson(listaDeContactos);
                     
                     // Usuario accedio con exito.                    
-                    resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                    resultado.setCuerpoJSON(contactosJson);
+                    resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                    resultado.getEventoProducido().setCuerpoJSON(contactosJson);
                     
                 } else {
                     // La contraseña es incorrecta, retornar error.
-                    resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                    resultado.setCuerpoJSON(ERR_USR_PASS_INCORRECTO);
+                    resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                    resultado.getEventoProducido().setCuerpoJSON(ERR_USR_PASS_INCORRECTO);
                 }
 
             } else {
                 // El usuario ya existe, retornar error.
                 String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_NO_EXISTE + " " + credenciales.getNombreUsuario()));
                 
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(jsonErr);
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.getEventoProducido().setCuerpoJSON(jsonErr);
             }
 
         } 
@@ -223,32 +237,38 @@ public class ControladorChat
             // El cuerpo de la acción del cliente no está bien formado.
             String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
             
-            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-            resultado.setCuerpoJSON(jsonErr);
+            resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.getEventoProducido().setCuerpoJSON(jsonErr);
         }
         
         return resultado;
     }
 
-    public EventoServidor cerrarSesion() 
+    public Evento cerrarSesion() 
     {
         // Actualizar estado con la desconexión del usuario actual.
         estadoServidor.desconectarUsuario(idUsuario);
         
         // Usuario cerró sesión.
-        return new EventoServidor(
-            TipoDeEvento.RESULTADO_OK,
-            -1,
-            ""
+        return new Evento(
+            TipoDeAccion.CERRAR_SESION,
+            new EventoServidor(
+                TipoDeEvento.RESULTADO_OK,
+                -1,
+                ""
+            )
         );
     }
 
-    public EventoServidor recuperarPassword(String json) 
+    public Evento recuperarPassword(String json) 
     {
-        EventoServidor resultado = new EventoServidor(
-            TipoDeEvento.ERROR_SERVIDOR,
-            idUsuario.get(),
-            ""
+        Evento resultado = new Evento(
+            TipoDeAccion.RECUPERAR_CONTRASEÑA,
+            new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR,
+                idUsuario.get(),
+                ""
+            )
         );
         
         try 
@@ -267,14 +287,14 @@ public class ControladorChat
                 usuarioDAO.actualizar(usuario);
 
                 // Usuario creado, registro exitoso.
-                resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
 
             } else {
                 // El usuario no existe, retornar error.
                 String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_NO_EXISTE));
                 
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(jsonErr);
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.getEventoProducido().setCuerpoJSON(jsonErr);
             }
 
         } 
@@ -283,20 +303,23 @@ public class ControladorChat
             // El cuerpo de la acción del cliente no está bien formado.
             String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
             
-            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-            resultado.setCuerpoJSON(jsonErr);
+            resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.getEventoProducido().setCuerpoJSON(jsonErr);
         }
         
         return resultado;
     }
     
-    public EventoServidor obtenerMensajes(String json) 
+    public Evento obtenerMensajes(String json) 
     {
         // La respuesta que será enviada al cliente.
-        EventoServidor resultado = new EventoServidor(
-            TipoDeEvento.ERROR_SERVIDOR, 
-            idUsuario.get(), 
-            ""
+        Evento resultado = new Evento(
+            TipoDeAccion.OBTENER_MENSAJES,
+            new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR,
+                idUsuario.get(),
+                ""
+            )
         );
         
         try 
@@ -329,14 +352,14 @@ public class ControladorChat
                     // Enviar lista de mensajes.
                     String jsonResultado = gson.toJson(listaMensajes);
 
-                    resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                    resultado.setCuerpoJSON(jsonResultado);
+                    resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                    resultado.getEventoProducido().setCuerpoJSON(jsonResultado);
                 }
                 else 
                 {
                     // El contacto no existe.
-                    resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                    resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
+                    resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                    resultado.getEventoProducido().setCuerpoJSON(ERR_INV_NO_EXISTE);
                 }
             }
             else 
@@ -365,33 +388,36 @@ public class ControladorChat
                     // Enviar lista de mensajes.
                     String jsonResultado = gson.toJson(listaMensajes);
 
-                    resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                    resultado.setCuerpoJSON(jsonResultado);
+                    resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                    resultado.getEventoProducido().setCuerpoJSON(jsonResultado);
                 }
                 else 
                 {
                     // El contacto no existe.
-                    resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                    resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
+                    resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                    resultado.getEventoProducido().setCuerpoJSON(ERR_INV_NO_EXISTE);
                 }
             }
         } 
         catch (JsonSyntaxException e)
         {
             // El cuerpo de la acción del cliente no está bien formado.
-            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-            resultado.setCuerpoJSON(ERR_FORMATO_JSON);
+            resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.getEventoProducido().setCuerpoJSON(ERR_FORMATO_JSON);
         }
         
         return resultado;
     }
 
-    public EventoServidor enviarMensaje(String json) 
+    public Evento enviarMensaje(String json) 
     {
-        EventoServidor resultado = new EventoServidor(
-            TipoDeEvento.ERROR_SERVIDOR,
-            idUsuario.get(),
-            ""
+         Evento resultado = new Evento(
+            TipoDeAccion.ENVIAR_MENSAJE,
+            new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR,
+                idUsuario.get(),
+                ""
+            )
         );
         
         try 
@@ -433,14 +459,14 @@ public class ControladorChat
                         String jsonMensaje = gson.toJson(mensajeEnviado);
 
                         // El mensaje fue enviado.
-                        resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                        resultado.setCuerpoJSON(jsonMensaje);
+                        resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                        resultado.getEventoProducido().setCuerpoJSON(jsonMensaje);
                     } else {
                         // El destinatario del mensaje no existe.
                         String jsonErr = gson.toJson(new ErrorEvento(ERR_DEST_NO_EXISTE));
                 
-                        resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                        resultado.setCuerpoJSON(jsonErr);
+                        resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                        resultado.getEventoProducido().setCuerpoJSON(jsonErr);
                     }
                 }
                 else 
@@ -466,22 +492,22 @@ public class ControladorChat
                         String jsonMensaje = gson.toJson(mensajeEnviado);
 
                         // El mensaje fue enviado.
-                        resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                        resultado.setCuerpoJSON(jsonMensaje);
+                        resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                        resultado.getEventoProducido().setCuerpoJSON(jsonMensaje);
                     } else {
                         // El destinatario del mensaje no existe.
                         String jsonErr = gson.toJson(new ErrorEvento(ERR_DEST_NO_EXISTE));
                 
-                        resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                        resultado.setCuerpoJSON(jsonErr);
+                        resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                        resultado.getEventoProducido().setCuerpoJSON(jsonErr);
                     }
                 }
             } else {
                 // El usuario no existe, retornar error.
                 String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_NO_EXISTE));
                 
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(jsonErr);
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.getEventoProducido().setCuerpoJSON(jsonErr);
             }
 
         } 
@@ -490,15 +516,24 @@ public class ControladorChat
             // El cuerpo de la acción del cliente no está bien formado.
             String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
             
-            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-            resultado.setCuerpoJSON(jsonErr);
+            resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.getEventoProducido().setCuerpoJSON(jsonErr);
         }
         
         return resultado;
     }
 
-   public EventoServidor enviarInvitacion(String json) 
+   public Evento enviarInvitacion(String json) 
     {
+        Evento resultado = new Evento(
+            TipoDeAccion.ENVIAR_INVITACION,
+            new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR,
+                idUsuario.get(),
+                ""
+            )
+        );
+                 
         try 
         {
             DTOInvitacion dtoInvitacion = gson.fromJson(json, DTOInvitacion.class);
@@ -528,35 +563,40 @@ public class ControladorChat
                 estadoServidor.enviarInvitacion(dtoInvitacion);
 
                 // Invitacion creada.
-                return new EventoServidor(
-                    TipoDeEvento.RESULTADO_OK,
-                    idUsuario.get(),
-                    gson.toJson(dtoInvitacion)
-                );
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                resultado.getEventoProducido().setCuerpoJSON(gson.toJson(dtoInvitacion));
 
             } else {
                 // El grupo o el usuario invitado no existen.
-                return new EventoServidor(
-                    TipoDeEvento.ERROR_CLIENTE,
-                    idUsuario.get(),
-                    ERR_USR_O_GRUP_NO_EXISTEN
-                );
+                String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_O_GRUP_NO_EXISTEN));
+                
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.getEventoProducido().setCuerpoJSON(jsonErr);
             }
 
         } 
         catch (JsonSyntaxException e)
         {
-            return new EventoServidor(TipoDeEvento.ERROR_CLIENTE, idUsuario.get(), ERR_FORMATO_JSON);
+            // El cuerpo de la acción del cliente no está bien formado.
+            String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
+            
+            resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.getEventoProducido().setCuerpoJSON(jsonErr);
         }
+        
+        return resultado;
     }
 
-    public EventoServidor aceptarInvitacion(String json) 
+    public Evento aceptarInvitacion(String json) 
     {
         // La respuesta que será enviada al cliente.
-        EventoServidor resultado = new EventoServidor(
-            TipoDeEvento.ERROR_SERVIDOR, 
-            idUsuario.get(), 
-            ""
+        Evento resultado = new Evento(
+            TipoDeAccion.ACEPTAR_INVITACION,
+            new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR,
+                idUsuario.get(),
+                ""
+            )
         );
         
         try 
@@ -570,8 +610,8 @@ public class ControladorChat
             {
                 // La invitación no existe, no puede ser aceptada.
                 String jsonErr = gson.toJson(new ErrorEvento(ERR_INV_NO_EXISTE));
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(jsonErr);
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.getEventoProducido().setCuerpoJSON(jsonErr);
                 
                 return resultado;
             }
@@ -583,8 +623,8 @@ public class ControladorChat
             {
                 // El usuario que intenta aceptar la invitación debe existir.
                 String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_EXISTE));
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(jsonErr);
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.getEventoProducido().setCuerpoJSON(jsonErr);
                 
                 return resultado;
             }
@@ -634,34 +674,41 @@ public class ControladorChat
                 // Eliminar invitacion aceptada de la BD. 
                 invitacionDAO.eliminar(invitacion);
                 
-                resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                resultado.setCuerpoJSON(jsonResultado);
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                resultado.getEventoProducido().setCuerpoJSON(jsonResultado);
             }
             else 
             {
                 // El usuario invitado y el que está intentando aceptar la 
                 // invitación no son el mismo.
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_AUTENTICACION);
-                resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
+                String jsonErr = gson.toJson(new ErrorEvento(ERR_INV_NO_EXISTE));
+
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_AUTENTICACION);
+                resultado.getEventoProducido().setCuerpoJSON(jsonErr);
             }
         } 
         catch (JsonSyntaxException e)
         {
             // El cuerpo de la acción del cliente no está bien formado.
-            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-            resultado.setCuerpoJSON(ERR_FORMATO_JSON);
+            String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
+            
+            resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.getEventoProducido().setCuerpoJSON(jsonErr);
         }
         
         return resultado;
     }
     
-    public EventoServidor rechazarInvitacion(String json) 
+    public Evento rechazarInvitacion(String json) 
     {
         // La respuesta que será enviada al cliente.
-        EventoServidor resultado = new EventoServidor(
-            TipoDeEvento.ERROR_SERVIDOR, 
-            idUsuario.get(), 
-            ""
+        Evento resultado = new Evento(
+            TipoDeAccion.RECHAZAR_INVITACION,
+            new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR,
+                idUsuario.get(),
+                ""
+            )
         );
         
         try 
@@ -684,32 +731,39 @@ public class ControladorChat
                 // Enviar confirmacion de id de la invitacion rechazada al cliente.
                 String jsonResultado = gson.toJson(idInvitacion);
                 
-                resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                resultado.setCuerpoJSON(jsonResultado);
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                resultado.getEventoProducido().setCuerpoJSON(jsonResultado);
 
             } else {
                 // La invitación no existe, no puede ser rechazada.
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
+                String jsonErr = gson.toJson(new ErrorEvento(ERR_INV_NO_EXISTE));
+                                
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.getEventoProducido().setCuerpoJSON(jsonErr);
             }
         } 
         catch (JsonSyntaxException e)
         {
             // El cuerpo de la acción del cliente no está bien formado.
-            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-            resultado.setCuerpoJSON(ERR_FORMATO_JSON);
+            String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
+            
+            resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.getEventoProducido().setCuerpoJSON(jsonErr);
         }
         
         return resultado;
     }
     
-    public EventoServidor crearGrupo(String json) 
+    public Evento crearGrupo(String json) 
     {
         // La respuesta que será enviada al cliente.
-        EventoServidor resultado = new EventoServidor(
-            TipoDeEvento.ERROR_SERVIDOR, 
-            idUsuario.get(), 
-            ""
+        Evento resultado = new Evento(
+            TipoDeAccion.CREAR_GRUPO,
+            new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR,
+                idUsuario.get(),
+                ""
+            )
         );
         
         try 
@@ -750,38 +804,47 @@ public class ControladorChat
                     DTOGrupo grupoCreado = new DTOGrupo(idNuevoGrupo, nuevoGrupo.getNombre(), nuevoGrupo.getIdsUsuariosMiembro());
                     String jsonResultado = gson.toJson(grupoCreado);
 
-                    resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                    resultado.setCuerpoJSON(jsonResultado);
+                    resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                    resultado.getEventoProducido().setCuerpoJSON(jsonResultado);
                     
                 } else {
                     // Al menos uno de los miembros invitados incialmente no existe.
-                    resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                    resultado.setCuerpoJSON(ERR_USR_NO_EXISTE);
+                    String jsonErr = gson.toJson(new ErrorEvento(ERR_USR_NO_EXISTE));
+                    
+                    resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                    resultado.getEventoProducido().setCuerpoJSON(jsonErr);
                 }
 
             } else {
                 // El grupo no tiene el tamaño necesario.
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(ERR_GRUPO_USUARIOS_INSUF);
+                String jsonErr = gson.toJson(new ErrorEvento(ERR_GRUPO_USUARIOS_INSUF)); 
+                
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.getEventoProducido().setCuerpoJSON(jsonErr);
             }
         } 
         catch (JsonSyntaxException e)
         {
             // El cuerpo de la acción del cliente no está bien formado.
-            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-            resultado.setCuerpoJSON(ERR_FORMATO_JSON);
+            String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
+            
+            resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.getEventoProducido().setCuerpoJSON(jsonErr);
         }
         
         return resultado;
     }
 
-    public EventoServidor abandonarGrupo(String json) 
+    public Evento abandonarGrupo(String json) 
     {
         // La respuesta que será enviada al cliente.
-        EventoServidor resultado = new EventoServidor(
-            TipoDeEvento.ERROR_SERVIDOR, 
-            idUsuario.get(), 
-            ""
+        Evento resultado = new Evento(
+            TipoDeAccion.ABANDONAR_GRUPO,
+            new EventoServidor(
+                TipoDeEvento.ERROR_SERVIDOR,
+                idUsuario.get(),
+                ""
+            )
         );
         
         try 
@@ -828,24 +891,30 @@ public class ControladorChat
                     // Enviar confirmacion con datos del grupo abandonado al cliente.
                     String jsonResultado = gson.toJson(idGrupoAbandonado);
 
-                    resultado.setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
-                    resultado.setCuerpoJSON(jsonResultado);
+                    resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.RESULTADO_OK);
+                    resultado.getEventoProducido().setCuerpoJSON(jsonResultado);
                 } else {
                     // El usuario no es miembro del grupo, no lo puede abandonar.
-                    resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                    resultado.setCuerpoJSON(ERR_GRUPO_USR_NO_ES_MIEMBRO);
+                    String jsonErr = gson.toJson(new ErrorEvento(ERR_GRUPO_USR_NO_ES_MIEMBRO));
+                                
+                    resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                    resultado.getEventoProducido().setCuerpoJSON(ERR_GRUPO_USR_NO_ES_MIEMBRO);
                 }
             } else {
                 // El grupo no existe.
-                resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-                resultado.setCuerpoJSON(ERR_INV_NO_EXISTE);
+                String jsonErr = gson.toJson(new ErrorEvento(ERR_GRUPO_NO_EXISTE));
+
+                resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+                resultado.getEventoProducido().setCuerpoJSON(jsonErr);
             }
         } 
         catch (JsonSyntaxException e)
         {
             // El cuerpo de la acción del cliente no está bien formado.
-            resultado.setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
-            resultado.setCuerpoJSON(ERR_FORMATO_JSON);
+            String jsonErr = gson.toJson(new ErrorEvento(ERR_FORMATO_JSON));
+            
+            resultado.getEventoProducido().setTipoDeEvento(TipoDeEvento.ERROR_CLIENTE);
+            resultado.getEventoProducido().setCuerpoJSON(jsonErr);
         }
         
         return resultado;

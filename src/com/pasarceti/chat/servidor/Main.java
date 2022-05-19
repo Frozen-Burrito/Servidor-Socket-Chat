@@ -7,6 +7,9 @@ import com.pasarceti.chat.servidor.bd.CredencialesBD;
 import com.pasarceti.chat.servidor.bd.PoolConexionesBD;
 import com.pasarceti.chat.servidor.gui.InterfazGrafica;
 import com.pasarceti.chat.servidor.gui.WorkerEventos;
+import com.pasarceti.chat.servidor.modelos.Evento;
+import com.pasarceti.chat.servidor.modelos.EventoServidor;
+import com.pasarceti.chat.servidor.modelos.TipoDeEvento;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.awt.event.ActionEvent;
@@ -71,6 +74,16 @@ public class Main {
         });
         
         WorkerEventos workerEventos = new WorkerEventos(servidor.getQueueEventos(), gui);
+        
+        Evento notificacion = new Evento(
+            TipoDeEvento.AMISTAD_ACEPTADA,
+            new EventoServidor(
+                TipoDeEvento.AMISTAD_ACEPTADA, 
+                "Esto es el JSON"
+            )
+        );
+        
+        System.out.println(notificacion.toString());
 
         SwingUtilities.invokeLater(new Runnable() {
             @Override

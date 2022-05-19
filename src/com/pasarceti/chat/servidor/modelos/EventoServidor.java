@@ -1,8 +1,6 @@
 package com.pasarceti.chat.servidor.modelos;
 
-import java.net.Socket;
 import java.util.HashSet;
-import java.util.Map.Entry;
 import java.util.Set;
 
 /**
@@ -42,6 +40,11 @@ public class EventoServidor extends Comunicacion {
         );
 
         return String.format("%s\n%s", lineaEncabezado, cuerpoJSON);
+    }
+    
+    public boolean esRespuesta()
+    {
+        return tipoDeEvento == TipoDeEvento.RESULTADO_OK || tieneError();
     }
 
     private static boolean esError(TipoDeEvento evento) 
