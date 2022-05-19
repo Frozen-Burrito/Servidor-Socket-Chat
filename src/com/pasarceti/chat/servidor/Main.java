@@ -9,6 +9,7 @@ import com.pasarceti.chat.servidor.gui.InterfazGrafica;
 import com.pasarceti.chat.servidor.gui.WorkerEventos;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.awt.event.ActionEvent;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -52,6 +53,17 @@ public class Main {
         
         InterfazGrafica gui = new InterfazGrafica();
         
+        gui.ConfigurarBtnON((ActionEvent e) -> {
+            gui.ActBtnOn();
+           // Thread hiloServidor = new Thread(servidor);
+           // hiloServidor.start();        
+        });
+        
+        gui.ConfigurarBtnOFF((ActionEvent e) -> {
+            gui.ActBtnOFF();
+            //servidor.terminar();
+        });
+        
         WorkerEventos workerEventos = new WorkerEventos(servidor.getQueueEventos(), gui);
         
         // Ejecutar el servidor en un hilo aparte.
@@ -62,6 +74,7 @@ public class Main {
             @Override
             public void run() {
               // Iniciar a ejecutar la interfaz
+              gui.Inicio();
               workerEventos.execute();
               gui.setVisible(true);
             }

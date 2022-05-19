@@ -3,6 +3,7 @@ package com.pasarceti.chat.servidor.controladores;
 import com.pasarceti.chat.servidor.bd.PoolConexionesBD;
 import com.pasarceti.chat.servidor.modelos.Evento;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -83,8 +84,9 @@ public class ServidorChat implements Runnable
             // a los clientes debidos.
             estado.agregarListener(notificador);
             
-            socketServidor = new ServerSocket(puerto);
-
+            socketServidor = new ServerSocket();
+            socketServidor.setReuseAddress(true);
+            socketServidor.bind(new InetSocketAddress(puerto));
             logger.info("Servidor iniciado, esperando conexiones.");
 
             // Aceptar conexiones mientras el servicio de ejecucion siga activo.
