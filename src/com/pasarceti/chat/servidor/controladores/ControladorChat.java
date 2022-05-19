@@ -251,16 +251,16 @@ public class ControladorChat
         
         try 
         {
-            DTOCambioPassword solicitudCambio = gson.fromJson(json, DTOCambioPassword.class);
+            DTOCredUsuario solicitudCambio = gson.fromJson(json, DTOCredUsuario.class);
 
             // Asegurar que el usuario ya existe en la BD
-            Usuario usuario = usuarioDAO.busqueda_porId(solicitudCambio.getIdUsuario());
+            Usuario usuario = usuarioDAO.busqueda_porNombre(solicitudCambio.getNombreUsuario());
             
             // Revisar si el usuario existe.
             if (usuario != null) 
             {
                 // Actualizar registro de usuario con nueva contraseña en BD.
-                usuario.setPassword(solicitudCambio.getNuevaPassword());
+                usuario.setPasswordSecure(solicitudCambio.getPassword());
                 
                 usuarioDAO.actualizar(usuario);
 
