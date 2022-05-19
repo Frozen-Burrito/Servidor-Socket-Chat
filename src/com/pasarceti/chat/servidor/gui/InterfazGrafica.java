@@ -6,6 +6,7 @@ package com.pasarceti.chat.servidor.gui;
 
 import java.awt.event.ActionEvent;
 import com.pasarceti.chat.servidor.modelos.Evento;
+import java.awt.event.ActionListener;
 import javax.swing.DefaultListModel;
 
 /**
@@ -30,8 +31,7 @@ public class InterfazGrafica extends javax.swing.JFrame {
      */
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
-    private void initComponents()
-    {
+    private void initComponents() {
 
         jPanel1 = new javax.swing.JPanel();
         jPanel3 = new javax.swing.JPanel();
@@ -92,11 +92,9 @@ public class InterfazGrafica extends javax.swing.JFrame {
         jToggleButton1.setFont(new java.awt.Font("Segoe UI", 1, 12)); // NOI18N
         jToggleButton1.setText("ON");
         jToggleButton1.setBorderPainted(false);
-        jToggleButton1.addActionListener(new java.awt.event.ActionListener()
-        {
-            public void actionPerformed(java.awt.event.ActionEvent evt)
-            {
-                jToggleButton1ActionPerformed(evt);
+        jToggleButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                ConfigurarBtnON(evt);
             }
         });
 
@@ -105,11 +103,9 @@ public class InterfazGrafica extends javax.swing.JFrame {
         jToggleButton2.setText("OFF");
         jToggleButton2.setBorder(new javax.swing.border.LineBorder(new java.awt.Color(246, 231, 253), 1, true));
         jToggleButton2.setBorderPainted(false);
-        jToggleButton2.addActionListener(new java.awt.event.ActionListener()
-        {
-            public void actionPerformed(java.awt.event.ActionEvent evt)
-            {
-                jToggleButton2ActionPerformed(evt);
+        jToggleButton2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                ConfigurarBtnOFF(evt);
             }
         });
 
@@ -141,13 +137,14 @@ public class InterfazGrafica extends javax.swing.JFrame {
         jScrollPane3.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
 
         jList1.setFont(new java.awt.Font("Open Sans", 0, 14)); // NOI18N
-        jList1.setModel(new javax.swing.AbstractListModel<String>()
-        {
-            String[] strings = { "Eventos del cliente", "\t1.1 Registrar usuario", "\t1.2 Iniciar sesión", "\t1.3 Cerrar sesión", "\t1.4 Recuperar contraseña", "\t1.5 enviar mensaje", "\t1.6 agregar amigo", "\t1.7 eliminar amigo", "\t1.8 crear grupo", "\t1.9 enviar invitación", "\t1.10 aceptar invitación", "\t1.11 rechazar invitación", "\t1.12 abandonar grupo", "Eventos del servidor", "\t2.1 ok", "\t2.2 error del clinete", "\t2.3 error del servidor", "\t2.4 error de autenticación", "\t2.5 usuario conectado", "\t2.6 usuario desconectado", "\t2.7 mensaje enviado", "\t2.8 invitación enviada", "\t2.9 miembro se unió", "\t2.10 miembro abandonó", "\t2.11 grupo eliminado", " " };
+        jList1.setForeground(new java.awt.Color(51, 0, 51));
+        jList1.setModel(new javax.swing.AbstractListModel<String>() {
+            String[] strings = { "Eventos del cliente", "\t0 Registrar usuario", "\t1 Iniciar sesión", "\t2 Cerrar sesión", "\t3 Recuperar contraseña", "\t4 enviar mensaje", "\t5 agregar amigo", "\t6 eliminar amigo", "\t7 crear grupo", "\t8 enviar invitación", "\t9 aceptar invitación", "\t10 rechazar invitación", "\t11 abandonar grupo", " ", "Eventos del servidor", "\t0 ok", "\t1 error del clinete", "\t2 error del servidor", "\t3 error de autenticación", "\t4 usuario conectado", "\t5 usuario desconectado", "\t6 mensaje enviado", "\t7 invitación enviada", "\t8 miembro se unió", "\t9 miembro abandonó", "\t10 grupo eliminado", " " };
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
         });
         jList1.setToolTipText("");
+        jList1.setEnabled(false);
         jList1.setSelectionBackground(new java.awt.Color(228, 255, 209));
         jScrollPane3.setViewportView(jList1);
 
@@ -245,6 +242,7 @@ public class InterfazGrafica extends javax.swing.JFrame {
         jScrollPane2.setToolTipText("");
 
         jList2.setModel(modeloListaEventos);
+        jList2.setSelectionBackground(new java.awt.Color(246, 231, 253));
         jScrollPane2.setViewportView(jList2);
 
         javax.swing.GroupLayout jPanel11Layout = new javax.swing.GroupLayout(jPanel11);
@@ -309,7 +307,7 @@ public class InterfazGrafica extends javax.swing.JFrame {
         modeloListaEventos.addElement(evento.toString());
     }
     
-    private void jToggleButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jToggleButton2ActionPerformed
+    private void ConfigurarBtnOFF(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ConfigurarBtnOFF
         // TODO add your handling code here:
         jToggleButton2.addActionListener((ActionEvent e) -> {
             if (jToggleButton2.isSelected()) {
@@ -317,9 +315,17 @@ public class InterfazGrafica extends javax.swing.JFrame {
                 jToggleButton2.setBackground(new java.awt.Color(195, 115, 232));
             }
         });
-    }//GEN-LAST:event_jToggleButton2ActionPerformed
+    }//GEN-LAST:event_ConfigurarBtnOFF
 
-    private void jToggleButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jToggleButton1ActionPerformed
+    public void ConfigurarBtnOFF (ActionListener OFF){
+        jToggleButton2.addActionListener(OFF);
+        if (jToggleButton2.isSelected()) {
+                jToggleButton2.setBackground(new java.awt.Color(195, 115, 232));
+                jToggleButton1.setBackground(new java.awt.Color(234, 213, 242));
+            }
+    }
+    
+    private void ConfigurarBtnON(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ConfigurarBtnON
         // TODO add your handling code here:
         jToggleButton1.addActionListener((ActionEvent e) -> {
             if (jToggleButton1.isSelected()) {
@@ -327,8 +333,34 @@ public class InterfazGrafica extends javax.swing.JFrame {
                 jToggleButton2.setBackground(new java.awt.Color(234, 213, 242));
             }
         });
-    }//GEN-LAST:event_jToggleButton1ActionPerformed
+    }//GEN-LAST:event_ConfigurarBtnON
 
+    public void ConfigurarBtnON (ActionListener ON){
+        jToggleButton1.addActionListener(ON);
+    }
+    
+    public void ActBtnOn (){
+        if (jToggleButton1.isSelected()) {
+                jToggleButton1.setBackground(new java.awt.Color(195, 115, 232));
+                jToggleButton2.setBackground(new java.awt.Color(234, 213, 242));
+                jToggleButton1.setEnabled(false);
+                jToggleButton2.setEnabled(true);
+            }
+    }
+    public void Inicio (){
+                jToggleButton2.setEnabled(true);
+                jToggleButton1.setEnabled(false);
+    }
+    
+    
+    public void ActBtnOFF (){
+        if (jToggleButton2.isSelected()) {
+                jToggleButton2.setBackground(new java.awt.Color(195, 115, 232));
+                jToggleButton1.setBackground(new java.awt.Color(234, 213, 242));
+                jToggleButton2.setEnabled(false);
+                jToggleButton1.setEnabled(true);
+            }
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JLabel jLabel1;
