@@ -47,11 +47,11 @@ public class Evento {
     public String toString() 
     {
         return String.format(
-                "[%s] - %s%s%s", 
-                fecha.toString(), 
-                tipo, 
-                ": " + descripcionOpcional,
-                (eventoProducido.esRespuesta()) ? ", resultado: " + eventoProducido.getTipoDeEvento() : ""
+            "[%s] - %s%s%s", 
+            fecha.toString(), 
+            (tipo != null) ? tipo : accion, 
+            ": " + descripcionOpcional,
+            (eventoProducido.esRespuesta()) ? ", resultado: " + eventoProducido.getTipoDeEvento() : ""
         );
     }
 
