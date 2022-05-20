@@ -8,6 +8,7 @@ import java.awt.event.ActionEvent;
 import com.pasarceti.chat.servidor.modelos.Evento;
 import java.awt.event.ActionListener;
 import javax.swing.DefaultListModel;
+import javax.swing.JOptionPane;
 
 /**
  *
@@ -355,11 +356,16 @@ public class InterfazGrafica extends javax.swing.JFrame {
     
     public void ActBtnOFF (){
         if (jToggleButton2.isSelected()) {
-                jToggleButton2.setBackground(new java.awt.Color(195, 115, 232));
-                jToggleButton1.setBackground(new java.awt.Color(234, 213, 242));
-                jToggleButton2.setEnabled(false);
-                jToggleButton1.setEnabled(true);
-            }
+            jToggleButton2.setBackground(new java.awt.Color(195, 115, 232));
+            jToggleButton1.setBackground(new java.awt.Color(234, 213, 242));
+            jToggleButton2.setEnabled(false);
+            jToggleButton1.setEnabled(true);
+        }
+    }
+    
+    public void mostrarAlerta(String contenido)
+    {
+        JOptionPane.showMessageDialog(this, contenido);
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

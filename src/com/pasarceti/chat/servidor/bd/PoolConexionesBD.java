@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.LinkedList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Mantiene una pool de conexiones a una base de datos.
@@ -16,22 +18,16 @@ public class PoolConexionesBD
     
     LinkedList<Connection> conexiones = new LinkedList<>();
     
-    public PoolConexionesBD(CredencialesBD credenciales)
+    public PoolConexionesBD(CredencialesBD credenciales) throws SQLException
     {
         this.credenciales = credenciales;
         
         try 
         {
             iniciarPool();
-        }
-        catch (SQLException e)
+        } catch (ClassNotFoundException ex) 
         {
-            System.out.println("Error inicializando pool de conexiones a BD: " + e.getMessage());
-        } 
-        catch (ClassNotFoundException e) 
-        {
-            System.out.println("Clase driver para MySQL no encontrada: " + e.getMessage());
-
+            Logger.getLogger(PoolConexionesBD.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     

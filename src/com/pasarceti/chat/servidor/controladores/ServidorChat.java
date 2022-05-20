@@ -52,6 +52,8 @@ public class ServidorChat implements Runnable
     private final NotificadorDeEventos notificador;
     
     private final PoolConexionesBD poolDeConexiones;
+    
+    private Thread hiloDeEjecucion;
 
     public ServidorChat(int puerto, Level nivelDeLogs, PoolConexionesBD poolDeConexiones) 
     {
@@ -66,7 +68,20 @@ public class ServidorChat implements Runnable
     @Override
     public void run() 
     {
+        hiloDeEjecucion = Thread.currentThread();
+        
         ejecutar();
+    }
+    
+    public void reiniciar()
+    {
+        hiloDeEjecucion = new Thread(this);
+        hiloDeEjecucion.start();
+    }
+    
+    public void interrumpir()
+    {
+        hiloDeEjecucion.interrupt();
     }
     
     /**
